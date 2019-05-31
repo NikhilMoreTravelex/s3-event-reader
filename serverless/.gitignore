@@ -1,0 +1,5 @@
+.vscode
+.serverless
+.eslintrc.json
+serverless/node_modules
+api-test/node_modules

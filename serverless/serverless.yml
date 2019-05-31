@@ -1,0 +1,28 @@
+service: s3EventReader-api
+# package:
+#   individually: true
+#   exclude:
+#     - "**/*"
+
+plugins:
+  - serverless-prune-plugin
+  - serverless-offline
+
+custom:
+  stageNames:
+    dev: dev
+    sit: sit
+    uat: uat
+    preprod: preprod
+    prod: prod
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: ${self:custom.stageNames.dev}
+  region: eu-west-1
+  stackName: sls-${self:service}-${opt:stage, self:provider.stage}-stack
+  apiName: S3EventReader-api
+
+functions:
+  - ${file(./configs/functions/process.yml)}

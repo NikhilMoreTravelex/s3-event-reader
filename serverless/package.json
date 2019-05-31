@@ -1,0 +1,29 @@
+{
+  "name": "s3EventReader-service",
+  "version": "1.0.0",
+  "description": "Serverless s3EventReader api",
+  "main": "index.js",
+  "dependencies": {
+    "api-test": "file:../api-test",
+    "s3EventReader-process": "file:../api-operations/s3EventReader-process"
+  },
+  "directories": {
+    "lib": "./configs"
+  },
+  "devDependencies": {
+    "nyc": "^14.1.0",
+    "serverless-aws-alias": "^1.7.1",
+    "serverless-offline": "^4.9.4",
+    "serverless-prune-plugin": "^1.3.2"
+  },
+  "scripts": {
+    "unit-test": "mocha ../api-operations/*/unit-test/*.js",
+    "code-coverage": "nyc --reporter=html --reporter=text mocha ../api-operations/*/unit-test/*.js",
+    "component-test-pointer": "cd ../api-test && npm run component-test-execute",
+    "component-test": "sls offline --exec \"npm run component-test-pointer\" ",
+    "test": "npm run unit-test & npm run code-coverage & npm run component-test"
+  },
+  "contributors": [],
+  "author": "William Thekkumpurath",
+  "license": "[license]"
+}

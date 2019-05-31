@@ -1,0 +1,23 @@
+{
+    "name": "process-customer",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "mocha ./unit-test/*.js --reporter mochawesome --reporter-options reportDir=./unit-test-results,reportFilename=unit-test-report.html,code=false,autoOpen=false"
+    },
+    "dependencies": {
+        "generic-exception": "git+https://github.com/MukeshTravelex/generic-exception.git",
+        "node-i18n-util": "^1.0.5",
+        "serverless-offline": "^4.10.6",
+        "tvxcloud": "git+https://github.com/MukeshTravelex/tvxcloud.git"
+    },
+    "license": "ISC",
+    "devDependencies": {
+        "chai": "^4.2.0",
+        "chai-string": "^1.5.0",
+        "mocha": "^6.0.2",
+        "mochawesome": "^3.1.1"
+    },
+    "author": "William Thekkumpurath"
+}

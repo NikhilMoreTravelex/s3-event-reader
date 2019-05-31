@@ -1,0 +1,17 @@
+{
+  "name": "api-test",
+  "version": "1.0.0",
+  "description": "utilities required for component test",
+  "main": "",
+  "dependencies": {
+    "request": "^2.88.0",
+    "chai": "^4.2.0",
+    "mocha": "^6.0.2",
+    "mochawesome": "^3.1.1"
+  },
+  "scripts": {
+    "component-test-execute": "mocha ./component-test/*.js --reporter mochawesome --reporter-options reportDir=./component-test-results,reportFilename=component-test-report.html,code=false,autoOpen=false"
+  },
+  "author": "Pravin Surve",
+  "license": "ISC"
+}
