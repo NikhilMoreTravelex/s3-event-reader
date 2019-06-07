@@ -1,12 +1,16 @@
 'user strict';
 let _key,
-    _size;
+    _size,
+    _bucketName,
+    _awsRegion;
 
 class S3EventReaderDto {
 
-    constructor(key, size) {
+    constructor(key, size, bucketName, awsRegion) {
         _key = key
         _size = size;
+        _bucketName = bucketName;
+        _awsRegion = awsRegion;
     }
 
     get key() {
@@ -17,10 +21,20 @@ class S3EventReaderDto {
         return _size;
     }
 
+    get bucketName() {
+        return _bucketName;
+    }
+
+    get awsRegion() {
+        return _awsRegion;
+    }
+
     toJson() {
         return {
             'key': this.key,
-            'size': this.size
+            'size': this.size,
+            'bucketName': this.bucketName,
+            'awsRegion': this.awsRegion
         }
     }
 

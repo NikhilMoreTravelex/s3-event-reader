@@ -11,7 +11,7 @@ class S3EventReaderTransformer {
         var stringArray = s3EventReaderDto.key.split('/');
 
         
-        let s3EventReaderBo = new S3EventReaderBo(stringArray[2], stringArray[3], stringArray[4], stringArray[5], s3EventReaderDto.size);
+        let s3EventReaderBo = new S3EventReaderBo(stringArray[2], stringArray[3], stringArray[4], stringArray[5], s3EventReaderDto.size, s3EventReaderDto.bucketName, s3EventReaderDto.awsRegion);
         s3EventReaderBo = await s3EventReaderValidator.validateBo(s3EventReaderBo);
         return s3EventReaderBo;
     }

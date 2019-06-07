@@ -1,5 +1,5 @@
   process:
-    name: s3EventReader-process-${opt:stage, self:provider.stage}
+    name: s3-event-reader-${opt:stage, self:provider.stage}
     handler: src/handlers/${self:provider.name}/process-s3EventReader-handler.handle
     role: arn:aws:iam::820643439592:role/LambdaS3Execute
     timeout: 300

@@ -1,14 +1,16 @@
 'use strict';
-let _domain, _interfaceName, _jobName, _fileName, _size;
+let _domain, _interfaceName, _jobName, _fileName, _size, _bucketName, _awsRegion;
 
 class S3EventReaderBo {
 
-    constructor(domain, interfaceName, jobName, fileName, size) {
+    constructor(domain, interfaceName, jobName, fileName, size, bucketName, awsRegion) {
         _domain = domain;
         _interfaceName = interfaceName;
         _jobName = jobName;
         _fileName = fileName;
         _size = size;
+        _bucketName = bucketName;
+        _awsRegion = awsRegion;
     }
 
     get domain() {
@@ -31,13 +33,23 @@ class S3EventReaderBo {
         return _size;
     }
 
+    get bucketName() {
+        return _bucketName;
+    }
+
+    get awsRegion() {
+        return _awsRegion;
+    }
+
     toJson() {
         return {
             'domain': this.domain,
             'interfaceName': this.interfaceName,
             'jobName': this.jobName,
             'fileName': this.fileName,
-            'size': this.size
+            'size': this.size,
+            'bucketName': this.bucketName,
+            'awsRegion': this.awsRegion
         }
     }
 

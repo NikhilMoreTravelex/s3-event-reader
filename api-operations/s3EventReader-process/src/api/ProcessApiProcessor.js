@@ -8,31 +8,29 @@ const transformer = require('../transformer');
 
 
 class ProcessApiProcessor {
-    async process(event) {
-        //console.log("TCL: ProcessApiProcessor -> process -> event", event)
+    async process(event) {        
         try {
-            //if (event && event.body && event.body.event && event.body.event.Records) {
-            if (event  && event.Records) {
-                let records = event.Records;
-                let s3EventReaderDto;// = new S3EventReaderDto(record.key, record.size);
-                // if (records.length == 1) {
-                //     s3EventReaderDto = new S3EventReaderDto(records[0].s3.object.key, record.s3.object.size);
-                // }
-                records.forEach(record => {
-                    // create dto(data transfer object) for request object
-                    s3EventReaderDto = new S3EventReaderDto(record.s3.object.key, record.s3.object.size);
-                });
-                // transform dto to bo(business object)
+            let record;
+            if (event && event.body)
+            {
+                //this if will be hit when testing via POSTMAN or after the logger is implemented
+                let s3Event = JSON.parse(event.body);
+                record = s3Event.Records[0];
+            }
+            if (event && event.Records) { 
+                record = event.Records[0];
+            }
+            //check if the event had data, then check if it contains "Records[0] array"
+            if (record) {
+                let s3EventReaderDto = new S3EventReaderDto(record.s3.object.key, record.s3.object.size, record.s3.bucket.name, record.awsRegion);
                 let s3EventReaderBo = await transformer.S3EventReaderTransformer.transformToBo(s3EventReaderDto);
                 // invoke service and supply the bo and get bo from service 
                 return await service.s3EventReaderService.invokeLambda(s3EventReaderBo);
-            // transform into dto and return response using dto
-            //return await transformer.S3EventReaderTransformer.transformToDto(s3EventReaderBo);
             } else {
                 console.log('Event not found')
             }
         } catch (exception) {
-            //console.log(`Error occurred:  ${exception.message}`);
+            console.log(`Error occurred:  ${exception.message}`);
             if (!(exception instanceof GenericException)) {
                 throw new GenericException.Builder(ExceptionType.UNKNOWN_ERROR)
                     .withWrappedException(exception)

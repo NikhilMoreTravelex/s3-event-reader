@@ -13,6 +13,12 @@ class S3EventReaderValidator {
         if (!(s3EventReaderDto.size)) {
             throw this.generateValidationException(ExceptionType.MISSING_SIZE);
         }
+        if (!(s3EventReaderDto.bucketName && s3EventReaderDto.bucketName.trim())) {
+            throw this.generateValidationException(ExceptionType.MISSING_BUCKET_NAME);
+        }
+        if (!(s3EventReaderDto.awsRegion && s3EventReaderDto.awsRegion.trim())) {
+            throw this.generateValidationException(ExceptionType.MISSING_AWS_REGION);
+        }
         return s3EventReaderDto;
     }
 
@@ -31,6 +37,12 @@ class S3EventReaderValidator {
         }
         if (!(s3EventReaderBo.size)) {
             throw this.generateValidationException(ExceptionType.MISSING_SIZE);
+        }
+        if (!(s3EventReaderBo.bucketName && s3EventReaderBo.bucketName.trim())) {
+            throw this.generateValidationException(ExceptionType.MISSING_BUCKET_NAME);
+        }
+        if (!(s3EventReaderBo.awsRegion && s3EventReaderBo.awsRegion.trim())) {
+            throw this.generateValidationException(ExceptionType.MISSING_AWS_REGION);
         }
         return s3EventReaderBo;
     }

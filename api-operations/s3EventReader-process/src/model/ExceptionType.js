@@ -8,7 +8,9 @@ let ExceptionType = {
     'MISSING_DOMAIN': 'missingdomain',
     'MISSING_INTERFACE_NAME': 'missinginterfaceName',
     'MISSING_JOB_NAME': 'missingjobName',
-    'MISSING_FILE_NAME': 'missingfileName'
+    'MISSING_FILE_NAME': 'missingfileName',
+    'MISSING_BUCKET_NAME': 'missingbucketname',
+    'MISSING_AWS_REGION': 'missingawsregion'
 };
 
 module.exports = ExceptionType;

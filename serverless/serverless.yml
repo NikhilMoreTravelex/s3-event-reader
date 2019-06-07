@@ -1,4 +1,4 @@
-service: s3EventReader-api
+service: s3-event-reader
 # package:
 #   individually: true
 #   exclude:

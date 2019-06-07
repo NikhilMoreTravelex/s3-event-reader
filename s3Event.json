@@ -1,0 +1,38 @@
+{
+    "Records": [
+        {
+            "eventVersion": "2.1",
+            "eventSource": "aws:s3",
+            "awsRegion": "eu-west-1",
+            "eventTime": "2019-06-07T08:40:14.199Z",
+            "eventName": "ObjectCreated:Put",
+            "userIdentity": {
+                "principalId": "AWS:AROA36ERJEPUNJ4DYJ37O:William.Thekkumpurath@travelex.com"
+            },
+            "requestParameters": {
+                "sourceIPAddress": "121.244.32.130"
+            },
+            "responseElements": {
+                "x-amz-request-id": "97ED896BA67CFBDD",
+                "x-amz-id-2": "V+veAksD7drlVCQIyPepIf5NZ+wQ1e4YaG4X54aXASh2j747aYsOUTa/+alUuiLweLeCsEEdLpw="
+            },
+            "s3": {
+                "s3SchemaVersion": "1.0",
+                "configurationId": "forCsv",
+                "bucket": {
+                    "name": "tvx-middleware-dev",
+                    "ownerIdentity": {
+                        "principalId": "ADUQPRL7E4D07"
+                    },
+                    "arn": "arn:aws:s3:::tvx-middleware-dev"
+                },
+                "object": {
+                    "key": "interfaces/input/domain_test/interfaceName_test/jobName_test/testing_job2.csv",
+                    "size": 32,
+                    "eTag": "d218629530551cdf5a1871ab9e516861",
+                    "sequencer": "005CFA22EE249C5F54"
+                }
+            }
+        }
+    ]
+}

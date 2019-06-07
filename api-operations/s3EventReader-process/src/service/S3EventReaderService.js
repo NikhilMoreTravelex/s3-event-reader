@@ -8,14 +8,16 @@ const s3EnventReaderDao = require('../dal/S3EventReaderDao');
 class S3EnventReaderService {
     async invokeLambda(s3EnventReaderBo) {
         try {
-            var params = {
-                FunctionName: "arn:aws:lambda:eu-west-1:820643439592:function:InvokedByS3EventReader",
+            var payLoad = { "s3Object": s3EnventReaderBo.toString() }
+            var dataToBeSent = {
+                FunctionName: "arn:aws:lambda:eu-west-1:820643439592:function:data-processor-dev",
                 InvocationType: "Event",
                 LogType: "Tail",
-                Payload: s3EnventReaderBo.toString()
-            };            
-
-            return await s3EnventReaderDao.invokeLambda(params);            
+                Payload: JSON.stringify(payLoad)
+            };
+            //arn:aws:lambda:eu-west-1:820643439592:function:data-processor-dev
+            //arn:aws:lambda:eu-west-1:820643439592:function:InvokedByS3EventReader
+            return await s3EnventReaderDao.invokeLambda(dataToBeSent, s3EnventReaderBo.awsRegion);            
         } catch (ex) {
             throw new GenericException
                 .Builder(ExceptionType.ERROR_INVOKING_LAMBDA)
