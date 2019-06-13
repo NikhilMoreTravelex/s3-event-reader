@@ -49,7 +49,7 @@ class S3EventReaderBo {
             'fileName': this.fileName,
             'size': this.size,
             'bucketName': this.bucketName,
-            'awsRegion': this.awsRegion
+            'region': this.awsRegion
         }
     }
 
