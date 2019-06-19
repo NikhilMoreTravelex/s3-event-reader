@@ -1,0 +1,1 @@
+middleware_bucket_prevent_destroy = false
