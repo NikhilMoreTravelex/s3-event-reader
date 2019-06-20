@@ -35,9 +35,14 @@ resource "aws_s3_bucket_notification" "middleware_bucket_notification" {
   }
 }
 
+resource "random_string" "lambda_version" {
+  length = 16
+  special = false
+}
+
 resource "aws_s3_bucket_object" "lambda_package" {
   bucket = "${aws_s3_bucket.lambda_source.id}"
-  key    = "${var.application}/${var.lambda_version}/${var.lambda_package_filename}"
-  source = "../serverless/${var.lambda_package_filename}"
-  etag   = "${md5(file("../serverless/${var.lambda_package_filename}"))}"
+  key    = "${random_string.lambda_version.result}/${var.lambda_package_filename}"
+  source = "../serverless/.serverless/${var.lambda_package_filename}"
+  etag   = "${md5(file("../serverless/.serverless/${var.lambda_package_filename}"))}"
 }

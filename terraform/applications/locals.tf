@@ -3,6 +3,8 @@ locals {
   app_costcode = "IT-middleware"
   regions      = ["emea"]
 
+  name_prefix = "${var.app_name}-${local.app_env}"
+
   common_tags = {
     Family      = "${var.app_parent}"
     Application = "${var.app_name}"
@@ -250,7 +252,7 @@ locals {
     nonprod = "tvx-test.cloud"
     prod    = "tvx.cloud"
   }
-  
+
   /*
   #DNS Records Fepends on alb module
   dns_records_cname = {

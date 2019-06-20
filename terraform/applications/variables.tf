@@ -22,3 +22,13 @@ variable "app_name" {
   description = "Application Name"
   type        = "string"
 }
+
+variable "organisation" {
+  type    = "string"
+  default = "travelex"
+}
+
+variable "lambda_package_filename" {
+  type    = "string"
+  default = "s3-event-reader.zip"
+}

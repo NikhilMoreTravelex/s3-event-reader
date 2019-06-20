@@ -8,10 +8,6 @@ resource "aws_s3_bucket" "middleware" {
       "Name", "${organisation}-${local.name_prefix}-middleware",
     )
   )}"
-
-  lifecycle {
-    prevent_destroy = "${var.middleware_bucket_prevent_destroy}"
-  }
 }
 
 resource "aws_s3_bucket" "lambda_source" {
