@@ -43,6 +43,6 @@ resource "random_string" "lambda_version" {
 resource "aws_s3_bucket_object" "lambda_package" {
   bucket = "${aws_s3_bucket.lambda_source.id}"
   key    = "${random_string.lambda_version.result}/${var.lambda_package_filename}"
-  source = "../serverless/.serverless/${var.lambda_package_filename}"
-  etag   = "${md5(file("../serverless/.serverless/${var.lambda_package_filename}"))}"
+  source = "/root/serverless/.serverless/s3-event-reader.zip"
+  etag   = "${md5(file("/root/serverless/.serverless/s3-event-reader.zip"))}"
 }
