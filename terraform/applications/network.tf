@@ -15,7 +15,7 @@ module "network_ireland" {
   netnum             = "${local.subnet_netnum_start_index}"
 }
 
-/*
+
 module "nat_gateway" {
   # Ireland
   source             = "git::github.com/travelex/it-infra-modules.git//terraform_modules/sub_modules/ngw?ref=v1.1"
@@ -33,7 +33,7 @@ module "nat_gateway" {
   public_subnets       = ["${module.network_ireland.public_subnets}"]
   private_route_tables = ["${module.network_ireland.private_app_route_tables}"]
 }
-*/
+
 
 /*
 ######################
