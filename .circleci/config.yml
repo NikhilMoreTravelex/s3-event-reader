@@ -10,7 +10,6 @@ jobs:
       - run: |
           set -e
           docker-compose run npm
-          docker-compose run npm /bin/sh -c "cd /project/serverless && npm run unit-test"
           docker-compose run npm /bin/sh -c "cd /project/serverless && SLS_DEBUG=* node_modules/.bin/sls package"
     persist_to_workspace:
       root: /workspace
