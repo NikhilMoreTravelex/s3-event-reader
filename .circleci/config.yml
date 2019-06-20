@@ -137,7 +137,7 @@ jobs:
 
   build:
     docker:
-      image: node:12.4.0-alpine
+      - image: node:12.4.0-alpine
     steps:
       - checkout
       - *attach_workspace
