@@ -1,0 +1,64 @@
+{  
+  "Version":"2012-10-17",
+  "Statement":[
+     {  
+        "Effect":"Allow",
+        "Action":[  
+           "logs:CreateLogGroup",
+           "logs:CreateLogStream",
+           "logs:PutLogEvents"
+        ],
+        "Resource":"arn:aws:logs:*:*:*"
+     },
+         {  
+        "Effect":"Allow",
+        "Action":[  
+           "elasticloadbalancing:Describe*"
+        ],
+        "Resource":"arn:aws:elasticloadbalancing:eu-west-1:012440728499:loadbalancer/net/uat-ws-argosfx-rds/56c220e27a07df03"
+     },
+    {
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBInstanceAutomatedBackups",
+                "rds:DescribeDBEngineVersions",
+                "rds:DescribeDBSubnetGroups",
+                "rds:DescribeGlobalClusters",
+                "rds:DescribePendingMaintenanceActions",
+                "rds:DescribeEngineDefaultParameters",
+                "rds:DescribeDBParameterGroups",
+                "rds:DescribeDBClusterBacktracks",
+                "rds:DescribeReservedDBInstancesOfferings",
+                "rds:DownloadDBLogFilePortion",
+                "rds:DescribeDBInstances",
+                "rds:DescribeSourceRegions",
+                "rds:DescribeEngineDefaultClusterParameters",
+                "rds:DescribeDBParameters",
+                "rds:DescribeEventCategories",
+                "rds:DescribeEvents",
+                "rds:DescribeDBClusterSnapshotAttributes",
+                "rds:DescribeDBClusterParameters",
+                "rds:DescribeEventSubscriptions",
+                "rds:DescribeDBSnapshots",
+                "rds:DescribeDBLogFiles",
+                "rds:DescribeDBSecurityGroups",
+                "rds:DescribeDBSnapshotAttributes",
+                "rds:DescribeReservedDBInstances",
+                "rds:ListTagsForResource",
+                "rds:DescribeValidDBInstanceModifications",
+                "rds:DescribeDBClusterSnapshots",
+                "rds:DescribeOrderableDBInstanceOptions",
+                "rds:DescribeOptionGroupOptions",
+                "rds:DownloadCompleteDBLogFile",
+                "rds:DescribeDBClusterEndpoints",
+                "rds:DescribeCertificates",
+                "rds:DescribeDBClusters",
+                "rds:DescribeAccountAttributes"
+
+
+            ],
+            "Resource": "${rds-arn}"
+}
+
+  ]
+}

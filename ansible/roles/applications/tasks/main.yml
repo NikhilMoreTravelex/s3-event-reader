@@ -1,0 +1,82 @@
+---
+- name: "Run terraform project plan check mode"
+  terraform:
+    state: present
+    backend_config:
+      bucket: "{{bootstrap_prefix}}-{{aws_account_type}}-{{caller_facts.account}}"
+      region: "{{ bootstrap_aws_region }}"
+      kms_key_id: "{{ kms_id.stdout }}"
+      encrypt: true
+      workspace_key_prefix: "{{ app_parent }}-{{ app_name }}"
+      key: "terraform.tfstate"
+    force_init: true
+    project_path: "../terraform/{{role_name}}"
+    variables:
+      aws_account_name: "nonprod-argosfx"
+      target_region: "{{ bootstrap_aws_region }}"
+      target_infra: "{{ aws_account_type }}"
+      app_parent: "{{ app_parent }}"
+      app_name: "{{ app_name }}"
+    workspace: "{{ app_env }}"
+  check_mode: yes
+
+#This task will also work, but above task is better 
+#- name: "create file"
+#  shell: "touch {{playbook_dir}}/tfplan && ls -larth ../terraform/{{role_name}} "
+#  
+#- name: "Run terraform project with plan file"
+#  terraform:
+#    state: planned
+#    backend_config:
+#      bucket: "{{bootstrap_prefix}}-{{aws_account_type}}-{{caller_facts.account}}"
+#      region: "{{ bootstrap_aws_region }}"
+#      kms_key_id: "{{ kms_id.stdout }}"
+#      encrypt: true
+#      workspace_key_prefix: "{{ app_parent }}-{{ app_name }}"
+#      key: "terraform.tfstate"
+#    force_init: true
+#    project_path: "../terraform/{{role_name}}"
+#    plan_file: "{{playbook_dir}}/tfplan"
+#    variables:
+#      aws_account_name: "nonprod-argosfx"
+#      target_region: "{{ bootstrap_aws_region }}"
+#      target_infra: "{{ aws_account_type }}"
+#      app_parent: "{{ app_parent }}"
+#      app_name: "{{ app_name }}"
+#    workspace: "{{ app_env }}"
+
+
+
+- name: "Run terraform project "
+  terraform:
+    state: present
+    backend_config:
+      bucket: "{{bootstrap_prefix}}-{{aws_account_type}}-{{caller_facts.account}}"
+      region: "{{ bootstrap_aws_region }}"
+      kms_key_id: "{{ kms_id.stdout }}"
+      encrypt: true
+      workspace_key_prefix: "{{ app_parent }}-{{ app_name }}"
+      key: "terraform.tfstate"
+    force_init: true
+    project_path: "../terraform/{{role_name}}"
+    variables:
+      aws_account_name: "nonprod-argosfx"
+      target_region: "{{ bootstrap_aws_region }}"
+      target_infra: "{{ aws_account_type }}"
+      app_parent: "{{ app_parent }}"
+      app_name: "{{ app_name }}"
+    workspace: "{{ app_env }}"
+  register: tf_applications
+  tags:
+    - tf_applications
+
+- name: "Get bootstrap kms key for AWS account: {{caller_facts.account}} for target infra: {{aws_account_type}} in region: {{ bootstrap_aws_region }}"
+  shell: aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name uat-argosfx-asg- --query AutoScalingGroups
+  register: asg
+  run_once: true
+  tags:
+    - asg
+
+- debug: var=asg
+
+- debug: var=tf_applications.outputs

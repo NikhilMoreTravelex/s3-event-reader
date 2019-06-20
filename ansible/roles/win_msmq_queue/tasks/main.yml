@@ -1,0 +1,10 @@
+---
+- name: "Create private message queue"
+  win_shell: "if (!(Get-MsmqQueue -Name {{ item }} -QueueType Private)) {New-MsmqQueue -name {{ item }} -Transactional -QueueType Private -Label private$\\{{ item }}; Get-MsmqQueue -Name \"{{ item }}\" -QueueType Private | Set-MsmqQueueAcl -UserName \"Administrator\" -Allow FullControl} else {echo \"{{ item }} queue is already created\"}"
+  #win_shell: "Get-MsmqQueue -Name \"{{ item }}\" -QueueType Private | Remove-MsmqQueue"
+  with_items: 
+    - "{{ msmq_queue_name }}"
+  tags:
+    - win_msmq_queue
+
+      #- debug: var=msmq_output.results

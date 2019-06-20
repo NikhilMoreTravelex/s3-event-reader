@@ -1,0 +1,10 @@
+---
+- name: "Install ABCpdf license"
+  win_shell: ".\\powershell.exe {{abcpdf_license_key_path }}\\ABClicense.ps1"
+  args:
+    chdir: "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0"
+
+- name: "Delete license file from system"
+  win_file:
+    path: "{{ abcpdf_license_key_path }}\\ABClicense.ps1"
+    state: absent

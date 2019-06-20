@@ -1,0 +1,121 @@
+#Playbook to prepare points application AMI with pre-requisites.
+
+- name: Configure and Deploy Argos
+  hosts: "{{ targethosts }}"
+  gather_facts: yes
+  vars:
+    type: "{{ 'launch' if lookup('env', 'ANSIBLE_CONNECTION_TYPE') == 'ssm' else 'bake' }}"
+  vars_files:
+    - "{{ playbook_dir }}/config/{{ lookup('env', 'APP_NAME') }}/vars.yml"
+
+  roles:
+# List of windows features to be enabled on instance.  
+    - role: win_features
+      vars:
+        feature_list: "{{ win_features['feature_list'] }}"
+        feature_state: "{{ win_features['state'] }}"
+      when: skip[type]['win_features'] is not defined
+      tags: features
+
+# List of windows directory structure to be created on instance.
+    - role: win_file
+      vars:
+        path_list: "{{ create_directory_layout['path_list'] }}"
+        path_state: "{{ create_directory_layout['state'] }}"
+      when: skip[type]['create_directory_layout'] is not defined
+      tags: create_directory_layout
+
+# List of packages/binaries to download from s3.
+    - role: download_s3_objects
+      vars:
+        bucket_name: "{{ env_config[env_name]['config_bucket'] }}"        
+        local_dir_path: "{{ download_s3_objects['local_dir_path'] }}"
+        object_list: "{{ download_s3_objects['bucket_prefix'] | selectattr('type', 'equalto', type) | map(attribute='path') | list }}"
+      when: skip[type]['download_s3_objects'] is not defined
+      tags: download_s3_objects
+
+# List of packages/binaries to download from URL.
+    - role: win_get_url
+      vars:       
+        local_dir_path: "{{ win_get_url['local_dir_path'] }}"
+        download_list: "{{ win_get_url['download_list'] | selectattr('type', 'equalto', type) | map(attribute='url') | list }}"
+      when: skip[type]['win_get_url'] is not defined
+      tags: win_get_url
+
+# List of packages/binaries to extract in instance (this is downloaded from s3 in above step.)
+    - role: win_unzip
+      vars:
+        path_list: "{{ win_unzip['path_list'] | selectattr('type', 'equalto', type) | list }}"
+        path_state: "{{ win_unzip['state'] }}"
+      when: skip[type]['win_unzip'] is not defined
+      tags: win_unzip
+
+# List of windows programs to be installed on instance.
+    - role: win_package
+      vars:
+        local_dir_path: "{{ win_package['local_dir_path'] }}"
+        package_list: "{{ win_package['package_list'] }}"
+        package_state: "{{ win_package['state'] }}"
+      when: skip[type]['win_package'] is not defined
+      tags: package
+
+# Install ABCpdf license on machine
+    - role: abcpdf_license
+      vars:
+        abcpdf_license_key_path: "{{ license_path }}"
+      when:  skip[type]['abcpdf_license'] is not defined and type == "bake"
+      tags: abcpdf_license
+
+# Create windows MSMQ private queue for Taskmaker service
+    - role: win_msmq_queue
+      vars:
+        msmq_queue_name: "{{ win_msmq_queue['win_msmq_list'] }}"
+      when: skip[type]['win_msmq_queue'] is  not defined and type == "launch"
+      tags: win_msmq_queue
+
+# Setup Unified Cloudwatch Agent to collect instance metrics and logs monitoring
+    - role: win_cloudwatch_agent
+      vars:
+        config_filepath: "{{ win_cloudwatch_agent['config_filepath'] }}"
+        app_name: "{{ application }}"
+      when: skip[type]['win_cloudwatch_agent'] is not defined
+      tags: win_cloudwatch_agent
+
+
+# List of windows IIS configuration to be set on instance.
+    - role: win_iis_site
+      vars:
+        site_list: "{{ win_iis_site['site_list'] }}"
+        app_pool_attributes: "{{ win_iis_site['app_pool_attributes'] }}"
+      when: skip[type]['win_iis_site'] is not defined
+      tags: win_iis_site
+
+#Update attributes of XML config files
+    - role: win_xml
+      vars:
+        transform_list: "{{ win_xml['transform_list'] }}"
+      when: skip[type]['win_xml'] is not defined and type == "launch"
+      tags: win_xml
+
+#Encrypt web.config file after being updated by win_xml
+    - role: win_encrypt_webconfig
+      vars:
+        aspnet_regiis_path: "{{ win_aspnet }}"
+        win_webconfig_list: "{{ win_encrypt_webconfig['win_webconfig_list'] }}"
+      when: skip[type]['win_encrypt_webconfig'] is not defined and type == "launch"
+      tags: win_encrypt_webconfig
+ 
+      
+    - role: win_argos_service
+      vars:
+        service_list: "{{ win_argos_service['win_service_list'] | selectattr('type', 'equalto', type) | list }}"
+        path_state: "{{ win_argos_service['state'] }}"
+        type: "{{ 'launch' if lookup('env', 'ANSIBLE_CONNECTION_TYPE') == 'ssm' else 'bake' }}"
+      when: skip[type]['win_argos_service'] is not defined
+      tags: win_argos_service
+
+
+# Shutdown, Sysprep
+    - role: undo_winrm
+      when: skip[type]['undo_winrm'] is not defined and type == "bake"
+      tags: undo_winrm

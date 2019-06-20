@@ -1,0 +1,63 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetBucketLocation",
+          "s3:GetBucketAcl",
+          "s3:ListBucket",
+          "s3:ListAllMyBuckets"
+        ],
+        "Resource": [
+          "arn:aws:s3:::${config_bucket_name}"
+        ]
+      },
+      {
+        "Sid": "AllowInstanceRead",
+        "Effect": "Allow",
+        "Action": [
+            "s3:GetObject"                
+          ],
+          "Resource": [
+            "arn:aws:s3:::${config_bucket_name}/*"
+          ]
+    },     
+      {
+        "Sid": "AllowInstanceSSMParam",
+        "Effect": "Allow",
+        "Action": [
+          "ssm:GetParameter*",
+          "ssm:DescribeParameters"
+        ],
+        "Resource": [
+          "arn:aws:ssm:${region}:${account_id}:parameter${rds_lc_web_ssm_param}"
+        ]
+      },          
+      {
+        "Sid": "AllowInstanceDataKms",
+        "Effect": "Allow",
+        "Action": [
+          "kms:Decrypt", 
+          "kms:Encrypt", 
+          "kms:GenerateDataKey*"
+        ],
+        "Resource": [
+          "${data_kms_arn}"
+        ]
+      },
+      {
+        "Effect": "Allow",
+        "Action": [
+            "cloudwatch:PutMetricData",
+            "ec2:DescribeTags",
+            "logs:PutLogEvents",
+            "logs:DescribeLogStreams",
+            "logs:DescribeLogGroups",
+            "logs:CreateLogStream",
+            "logs:CreateLogGroup"
+        ],
+        "Resource": "*"
+    }      
+    ]
+  }

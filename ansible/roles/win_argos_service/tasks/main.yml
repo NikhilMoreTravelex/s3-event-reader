@@ -1,0 +1,25 @@
+---
+- name: Check if service exist
+  win_service:
+    name: "{{ item.name }}"
+  register: rg_svc
+  with_items:
+    - "{{ service_list }}"
+  tags:
+    - win_argos_service
+
+- name: "Install argos Services"
+  win_service:
+    name: "{{ item.item.name }}"
+    description: "{{ item.item.description }}"
+    display_name: "{{ item.item.display_name }}"
+    state: "{{ item.item.state | default('started') }}"
+    path: "{{ item.item.path }}"
+  become: yes
+  become_method: runas
+  become_user: SYSTEM
+  when: not item.exists
+  with_items:
+    - "{{ rg_svc.results }}"
+  tags:
+    - win_argos_service

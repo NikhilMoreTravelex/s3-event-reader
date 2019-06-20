@@ -1,0 +1,199 @@
+locals {
+
+  # Points Partner Security group
+  partner_whiltelist_ips = {
+    nonprod = ["99.81.160.40/32"]
+    prod = ["161.215.211.42/32","195.69.208.85/32"]
+  }
+}
+
+/*data "aws_ami" "argosfx" {
+  most_recent = true
+
+  filter {
+    name = "name"
+
+    values = [
+      "ami-${var.target_region}-${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-windows-server-2016*",
+    ]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["${data.aws_caller_identity.this.account_id}"] # Self Account.
+}
+*/
+###### Argosfx Configuration Bucket
+
+resource "aws_s3_bucket" "argosfx_config" {
+  bucket_prefix = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-config-"
+  acl           = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = "${aws_kms_key.app_data.arn}"
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+
+  tags = "${merge(
+    local.common_tags,
+    map(
+      "Name", "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-config"
+    )
+  )}"
+}
+
+data "template_file" "argosfx_config_bucket_policy" {
+  template = "${file("${path.module}/templates/argosfx-config-bucket-policy.json")}"
+
+  vars {
+    #account_id = "${data.aws_caller_identity.this.account_id}"
+    #assumed_role_id = "${element(split(":",data.aws_caller_identity.this.user_id),0)}"
+    #instance_role_id = "${aws_iam_role.instance_role.unique_id}"
+    #rds_role_id = "${aws_iam_role.rds_role.unique_id}"
+    bucket_name = "${aws_s3_bucket.argosfx_config.id}"
+    data_kms_arn = "${aws_kms_key.app_data.arn}"
+  }
+}
+
+resource "aws_s3_bucket_policy" "argosfx_config" {
+  bucket = "${aws_s3_bucket.argosfx_config.id}"
+  policy = "${data.template_file.argosfx_config_bucket_policy.rendered}"
+}
+
+
+
+
+#### ARGOSFX
+# ARGOSFX Service EC2 Instance/Server IAM role
+resource "aws_iam_role" "argosfx_instance" {
+  name_prefix        = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-instance-"
+  assume_role_policy = "${file("${path.module}/templates/assume-ec2.json")}"
+
+  tags = "${merge(
+    local.argosfx_common_tags,
+    map(
+      "Name", "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-ec2-role"
+    )
+  )}"
+}
+
+resource "aws_ssm_parameter" "rds_argosfx_password" {
+  name        = "/${local.app_env}/${var.app_parent}/${local.argosfx_common_tags["Application"]}/rds/argsfx/password"
+  type        = "SecureString"
+  value       = "${random_string.argosfx.result}"
+  description = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]} rdsargosfx password"
+  key_id      = "${aws_kms_key.app_data.arn}"
+  overwrite   = true
+
+  tags = "${merge(
+    local.argosfx_common_tags,
+    map(
+      "Name", "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-ssm-rds-argosfx"
+    )
+  )}"
+}
+
+/*resource "aws_ssm_parameter" "rds_lc_admin_password" {
+  name        = "/${local.app_env}/${var.app_parent}/${local.argosfx_common_tags["Application"]}/rds/lcadmin/password"
+  type        = "SecureString"
+  value       = "${random_string.lc_admin.result}"
+  description = "${local.app_env}-${var.app_parent}-${local.points_common_tags["Application"]} rds lcadmin password"
+  key_id      = "${aws_kms_key.app_data.arn}"
+  overwrite   = true
+
+  tags = "${merge(
+    local.points_common_tags,
+    map(
+      "Name", "${local.app_env}-${var.app_parent}-${local.points_common_tags["Application"]}-ssm-rds-lcadmin"
+    )
+  )}"
+}
+*/
+
+data "template_file" "argosfx_instance_policy" {
+  template = "${file("${path.module}/templates/argosfx-instance-policy.json")}"
+
+  vars {
+    data_kms_arn             = "${aws_kms_key.app_data.arn}"
+    config_bucket_name       = "${aws_s3_bucket.argosfx_config.id}"
+    account_id               = "${data.aws_caller_identity.this.account_id}"
+    region                   = "${var.target_region}"
+    rds_lc_web_ssm_param     = "${aws_ssm_parameter.rds_argosfx_password.name}"
+  }
+}
+
+##### ARGOSFX
+# Argosfx Service EC2 Instance/Server IAM role policy to access s3 config bucket, ssm.
+resource "aws_iam_role_policy" "argosfx_instance_policy" {
+  name_prefix = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-instance-policy-"
+  role        = "${aws_iam_role.argosfx_instance.id}"
+  policy      = "${data.template_file.argosfx_instance_policy.rendered}"
+}
+
+# Common Services EC2 Instance/Server IAM role policy to set it as managed SSM instance.
+resource "aws_iam_role_policy_attachment" "argosfx_ssm_policy" {
+  role       = "${aws_iam_role.argosfx_instance.id}"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+}
+
+#########
+
+# ARGOSFX
+# Instance profile for Points Service EC2 Instance/Server to access s3 config bucket, ssm.
+resource "aws_iam_instance_profile" "argosfx" {
+  name_prefix = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-instance-"
+  role        = "${aws_iam_role.argosfx_instance.name}"
+}
+
+resource "tls_private_key" "argosfx" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "aws_key_pair" "argosfx" {
+  key_name_prefix = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-app-key-"
+  public_key      = "${tls_private_key.argosfx.public_key_openssh}"
+}
+
+resource "aws_security_group" "argosfx_instance" {
+  name_prefix = "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-server-"
+  vpc_id      = "${module.network_ireland.vpc_id}"
+
+  tags = "${merge(
+    local.argosfx_common_tags,
+    map(
+      "Name", "${local.app_env}-${var.app_parent}-${local.argosfx_common_tags["Application"]}-server"
+    )
+  )}"
+}
+
+# generate password for LC_WEB rds database user
+resource "random_string" "argosfx" {
+  length      = 24
+  min_upper   = 1
+  min_lower   = 1
+  min_numeric = 1
+  special     = false
+}
+
+/*
+# generate password for LC_ADMIN rds database user
+resource "random_string" "lc_admin" {
+  length      = 24
+  min_upper   = 1
+  min_lower   = 1
+  min_numeric = 1
+  special     = false
+}
+*/
