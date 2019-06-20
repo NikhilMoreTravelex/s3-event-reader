@@ -76,6 +76,7 @@ jobs:
                         'develop': 'sit',
                         'release': 'uat',
                         'hotfix': 'preprod',
+                        'CLDOPS-58': 'dev',
                         'master': 'preprod'}
             base_branch = os.getenv('CIRCLE_BRANCH').split('/')[0]
             if base_branch not in branches.keys():
