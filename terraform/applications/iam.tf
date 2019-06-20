@@ -14,7 +14,7 @@ data "aws_iam_policy_document" "event_reader_assume_role" {
 resource "aws_iam_role" "event_reader" {
   name = "${local.name_prefix}"
   assume_role_policy = "${data.aws_iam_policy_document.event_reader_assume_role.json}"
-
+}
 resource "aws_iam_role_policy" "event_reader_policy" {
   name = "${local.name_prefix}"
   role = "${aws_iam_role.event_reader.name}"
