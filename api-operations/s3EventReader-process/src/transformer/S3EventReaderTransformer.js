@@ -10,8 +10,8 @@ class S3EventReaderTransformer {
         s3EventReaderDto = await s3EventReaderValidator.validateDto(s3EventReaderDto);
         var stringArray = s3EventReaderDto.key.split('/');
 
-        
-        let s3EventReaderBo = new S3EventReaderBo(stringArray[2], stringArray[3], stringArray[4], stringArray[5], s3EventReaderDto.size, s3EventReaderDto.bucketName, s3EventReaderDto.awsRegion);
+        let s3EventReaderBo = new S3EventReaderBo('finance', 'fx-rates', 'fx-rates', 'fxrates.csv', '32', s3EventReaderDto.bucketName, s3EventReaderDto.awsRegion);
+        //let s3EventReaderBo = new S3EventReaderBo(stringArray[2], stringArray[3], stringArray[4], stringArray[5], s3EventReaderDto.size, s3EventReaderDto.bucketName, s3EventReaderDto.awsRegion);
         s3EventReaderBo = await s3EventReaderValidator.validateBo(s3EventReaderBo);
         return s3EventReaderBo;
     }

@@ -8,7 +8,12 @@
         - src/handlers/${self:provider.name}/process-s3EventReader-handler.js
         - node_modules/s3EventReader-process/**
     events:
-      - http:
-          path: process
-          method: post
-          cors: true
+     - s3:
+          bucket: tvx-middleware-nonprod
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .csv
+      # - http:
+      #     path: process
+      #     method: post
+      #     cors: true

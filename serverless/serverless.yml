@@ -26,3 +26,24 @@ provider:
 
 functions:
   - ${file(./configs/functions/process.yml)}
+
+# # you can add CloudFormation resource templates here
+# resources:
+#   Resources:
+#     myDefaultRoleDataProcessor:
+#       Type: AWS::IAM::Role
+#       Properties:
+#         RoleName: myDefaultRoleDataProcessor # required if you want to use 'serverless deploy --function' later on
+#         PermissionsBoundary: "arn:aws:iam::820643439592:policy/MiddlewareDevBoundaries"
+#         AssumeRolePolicyDocument:
+#           Version: "2012-10-17"
+#           Statement:
+#             - Effect: Allow
+#               Principal:
+#                 Service:
+#                   - lambda.amazonaws.com
+#               Action: sts:AssumeRole
+#         # note that these rights are needed if you want your function to be able to communicate with resources within your vpc
+#         ManagedPolicyArns:
+#           - arn:aws:iam::aws:policy/AmazonS3FullAccess
+#           - arn:aws:iam::aws:policy/CloudWatchFullAccess
