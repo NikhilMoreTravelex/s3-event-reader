@@ -1,6 +1,6 @@
 locals {
   app_env      = "${terraform.workspace}"
-  app_costcode = "IT-ARGOS"
+  app_costcode = "IT-middleware"
   regions      = ["emea"]
 
   common_tags = {
@@ -10,7 +10,7 @@ locals {
     CostCode    = "${local.app_costcode}"
   }
 
-  argosfx_common_tags = {
+  middlewarefx_common_tags = {
     Family      = "${var.app_parent}"
     Application = "${var.app_name}"
     Environment = "${local.app_env}"
@@ -26,8 +26,8 @@ locals {
 
   # VPC / Network
   cidr_block = {
-    uat = "10.72.6.0/24"
-    production = "10.72.6.0/24"
+    uat = "10.74.6.0/24"
+    production = "10.74.6.0/24"
   }
 
   # Selected / Stripped AZ list from all available AZs on which resources will be scaled.
@@ -61,9 +61,9 @@ locals {
     private_app = 8
   }
 
-  # Argosfx network
-  argosfx_network = {
-    app_name           = "argosfx"
+  # middlewarefx network
+  middlewarefx_network = {
+    app_name           = "middlewarefx"
     count_per_az       = 1
     netnum_start_index = 12
   }
@@ -275,6 +275,6 @@ locals {
     #"/Account/LogOn.aspx"
     "/*"
   ]
-  service = ["argosfxservice"]
+  service = ["middlewarefxservice"]
 
 }
