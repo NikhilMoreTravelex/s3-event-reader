@@ -148,7 +148,6 @@ jobs:
           npm install
           npm config set unsafe-perm true
           npm install -g serverless
-          sls --version
 
 
   infra:
@@ -180,10 +179,9 @@ jobs:
       - run: |
           set -e
           pwd
-          sls config credentials --provider aws
-          pwd
           echo "Deploying To dev"
-          sls deploy --verbose --stage dev
+          cd serverless
+          serverless deploy --verbose --stage dev
 
 workflows:
   version: 2
