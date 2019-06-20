@@ -158,7 +158,7 @@ jobs:
 
   sls_deploy:
     docker:
-      - image: node:12.4.0-alpine
+      - image: tvxact/aws:0.0.3
     steps:
       - checkout
       - run: apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
