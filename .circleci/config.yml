@@ -165,6 +165,7 @@ jobs:
       - *attach_workspace
       - run: |
           set -e
+          cd serverless
           pwd
           apk update && apk add git
           npm install
@@ -172,7 +173,7 @@ jobs:
           npm config set prefix /usr/local
           npm install -g serverless
           echo "Deploying To dev"
-          cd serverless
+
           serverless deploy --verbose --stage dev
 
 workflows:
