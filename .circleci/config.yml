@@ -149,10 +149,11 @@ jobs:
           cd ../../serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
           pwd
           ls -l .serverless
-    persist_to_workspace:
-      root: /root/project
-      paths:
-        - serverless/.serverless/s3-event-reader.zip
+
+      - persist_to_workspace:
+          root: /root/project
+          paths:
+            - serverless/.serverless/s3-event-reader.zip
 
   infra:
     docker:
