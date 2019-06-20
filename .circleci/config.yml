@@ -190,7 +190,7 @@ workflows:
       - sls_deploy:
           requires:
             - sts
-            - infra
+    #        - infra
           filters:
             branches:
               only:
