@@ -25,8 +25,3 @@ variable "lambda_timeout" {
 variable "lambda_version" {
   type = "string"
 }
-
-
-variable "middleware_bucket_prevent_destroy" {
-  type = "string"
-}
