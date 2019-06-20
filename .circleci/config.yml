@@ -143,9 +143,12 @@ jobs:
       - *attach_workspace
       - run: |
           set -e
+          pwd
           apk update && apk add git
           cd api-operations/s3EventReader-process && npm install
           cd ../../serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
+          pwd
+          ls -l .serverless
     persist_to_workspace:
       root: /workspace
       paths:
