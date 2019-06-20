@@ -1,162 +1,250 @@
-jobs:
-  infra:
-    docker:
-    - image: gandhark/ansibleterraformpython3:2.8
-    steps:
-    - checkout
-    - attach_workspace:
-        at: ~/
-    - add_ssh_keys:
-        fingerprints:
-        - 7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d
-    - run:
-        command: |
-          cat ~/.env >> $BASH_ENV
-          echo "export APP_PARENT=ws" >> ${BASH_ENV}
-          echo "export APP_NAME=argosfx" >> ${BASH_ENV}
-          echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
-          echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
-          echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
-          echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
-          echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
-          cat ${BASH_ENV}
-        name: Export shared environment variables for argosfx.
-    - run:
-        Name: Delete any SecurityGroups left by packer build.
-        command: |
-          export temp_sec_groups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=packer_* | jq -r '.SecurityGroups[]|.GroupId')
-          for group in $temp_sec_groups; do aws ec2 delete-security-group --group-id $group; done
-    - run:
-        command: |
-          #export AWS_ACCOUNT_TYPE=$(cat ~/.env | grep 'AWS_ACCOUNT_TYPE' | awk -F " "  '{print $2}')
-          #export APP_ENVIRONMENT=$(cat ~/.env | grep 'APP_ENVIRONMENT' | awk -F " "  '{print $2}')
-          cd ansible && ansible-playbook -i hosts site.yml  -vvvv
-        name: Execute ansible playbook to deploy infrastructure
-        no_output_timeout: 1h
-  sts:
-    docker:
-    - image: gandhark/circlecipython3ssm:latest
-    steps:
-    - checkout
-    - run:
-        command: |
-          COMMIT_MSG=$(git log --format=oneline -n 1 $CIRCLE_SHA1)
-          if [[ *"${COMMIT_MSG,,}"* == *"[bake_argos]"* ]]; then
-            echo "[bake_argos] detected. Stopping. This job needs to be run only on launched instance."
-            circleci step halt
-          fi
-        name: Halt/Stop Job if commit message like bake_points
-    - attach_workspace:
-        at: ~/
-    - add_ssh_keys:
-        fingerprints:
-        - 7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d
-    - run:
-        command: |
-          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:travelex/it-infra-modules.git ~/it-infra-modules
-          cp -Rf ~/it-infra-modules/ansible/roles/* ./ansible/roles/
-        name: Clone it-infra-modules repository to get generic ansible roles
-    - run:
-        command: |
-          cat ~/.env >> $BASH_ENV
-          echo "export APP_PARENT=ws" >> ${BASH_ENV}
-          echo "export APP_NAME=argosfx" >> ${BASH_ENV}
-          echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
-          echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
-          echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
-          echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
-          echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
-          cat ${BASH_ENV}
-        name: Export shared environment variables for argosfx.
-    - run:
-        command: |
-          export ANSIBLE_CONNECTION_TYPE="ssm"
-          export ANSIBLE_PERSISTENT_COMMAND_TIMEOUT=6000
-          echo Running Ansible using $ANSIBLE_CONNECTION_TYPE connection plugin in $APP_ENVIRONMENT environment
-          instance_id=$(aws ec2 describe-instances --filter "Name=tag:Name,Values=${APP_ENVIRONMENT}-${APP_PARENT}-${APP_NAME}-server" "Name=instance-state-name,Values=running" --output text --query 'Reservations[*].Instances[*].InstanceId')
-          echo -e "[${APP_ENVIRONMENT}]\n${instance_id}" > config/${APP_NAME}/inv/ssm.tmp
-          cat config/${APP_NAME}/inv/ssm.tmp
-          ansible-playbook -i config/${APP_NAME}/inv/ssm.tmp -c $ANSIBLE_CONNECTION_TYPE -e "targethosts=$APP_ENVIRONMENT" play-argosfx-site.yml -vvvvv --tags win_encrypt_webconfig,win_argos_service #--tags "win_encrypt_webconfig" #--tags "" #--skip-tags "download_s3_objects,win_cloudwatch_agent,win_iis_site,win_unzip,nssm_s3_sync,points,points_scheduler_service,win_xml,win_service"
-        name: Execute ansible playbook using ssm connection
-        no_output_timeout: 30m
-        working_directory: ansible
+---
+version: 2.0
+
 references:
-  add_ssh_keys_infra_modules:
-    fingerprints:
-    - 7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d
-  attach_workspace:
+
+  bake_container_config: &bake_container_config
+    docker:
+      - image: hashicorp/packer
+  # Circle Working directory by default for this container is /root/project
+  # Homedir for this container is /root
+
+  attach_workspace: &attach_workspace
     attach_workspace:
       at: ~/
-  bake_container_config:
+  # Workspace is attached at container user homedir path. echo $HOME will print the path.
+
+  add_ssh_keys_infra_modules: &add_ssh_keys_infra_modules
+      fingerprints:
+        - "7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d"
+  # it-infra-modules public key.
+  # This is required to checkout it-infra-modules repository and refers to its deploy key.
+
+  infra_modules_checkout: &infra_modules_checkout
+      name: Clone it-infra-modules repository to get generic ansible roles
+      command: |
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:travelex/it-infra-modules.git ~/it-infra-modules
+        cp -Rf ~/it-infra-modules/ansible/roles/* ./ansible/roles/
+
+  bake_container_packages: &bake_container_packages
+      name: Install builder OS packages
+      command: >
+        apk add --no-progress --no-cache
+        python
+        py-pip
+        libffi
+        python-dev
+        libffi-dev
+        gcc
+        musl-dev
+        openssl-dev
+        openssh
+        openssh-client
+        curl
+        jq
+        ruby
+        ruby-dev
+        build-base
+        libxml2-dev
+        libxslt-dev && pip install --upgrade pip awscli ansible boto3 botocore
+
+  bake_container_pip_req: &bake_container_pip_req
+      name: Install Python packages
+      working_directory: ansible
+      command: >
+        pip install -q -r requirements.txt
+
+  get_public_ip: &get_public_ip
+      name: Discover my IP
+      command: |
+        curl -s ifconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
+        if [ $? -ne 0 ]; then
+          echo 'ifconfig failed'
+          curl -s ipconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
+        fi
+        cat .my_ip
+  packer_cleanup: &packer_cleanup
+      Name: Delete any SecurityGroups left by packer build.
+      command: |
+        export temp_sec_groups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=packer_* | jq -r '.SecurityGroups[]|.GroupId')
+        for group in $temp_sec_groups; do aws ec2 delete-security-group --group-id $group; done
+
+  load_bash_env: &load_bash_env
+      name: Export shared environment variables for middlewarefx.
+      command: |
+        cat ~/.env >> $BASH_ENV
+        echo "export APP_PARENT=ws" >> ${BASH_ENV}
+        echo "export APP_NAME=middlewarefx" >> ${BASH_ENV}
+        echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
+        echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
+        echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
+        echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
+        echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
+        cat ${BASH_ENV}
+
+jobs:
+  sts:
     docker:
-    - image: hashicorp/packer
-  bake_container_packages:
-    command: |
-      apk add --no-progress --no-cache python py-pip libffi python-dev libffi-dev gcc musl-dev openssl-dev openssh openssh-client curl jq ruby ruby-dev build-base libxml2-dev libxslt-dev && pip install --upgrade pip awscli ansible boto3 botocore
-    name: Install builder OS packages
-  bake_container_pip_req:
-    command: |
-      pip install -q -r requirements.txt
-    name: Install Python packages
-    working_directory: ansible
-  get_public_ip:
-    command: |
-      curl -s ifconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
-      if [ $? -ne 0 ]; then
-        echo 'ifconfig failed'
-        curl -s ipconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
-      fi
-      cat .my_ip
-    name: Discover my IP
-  infra_modules_checkout:
-    command: |
-      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:travelex/it-infra-modules.git ~/it-infra-modules
-      cp -Rf ~/it-infra-modules/ansible/roles/* ./ansible/roles/
-    name: Clone it-infra-modules repository to get generic ansible roles
-  load_bash_env:
-    command: |
-      cat ~/.env >> $BASH_ENV
-      echo "export APP_PARENT=ws" >> ${BASH_ENV}
-      echo "export APP_NAME=argosfx" >> ${BASH_ENV}
-      echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
-      echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
-      echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
-      echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
-      echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
-      cat ${BASH_ENV}
-    name: Export shared environment variables for argosfx.
-  packer_cleanup:
-    Name: Delete any SecurityGroups left by packer build.
-    command: |
-      export temp_sec_groups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=packer_* | jq -r '.SecurityGroups[]|.GroupId')
-      for group in $temp_sec_groups; do aws ec2 delete-security-group --group-id $group; done
-version: 2.0
+      - image: governmentpaas/awscli
+    # Circle Working directory by default for this container is /root/project
+    # Homedir for this container is /root
+    steps:
+      - run: apk add --update bash && mkdir -p /workspace/.aws
+      - run:
+          name: Initializing AWS credentials and detect environment for middlewarefx
+          command: |
+            if [ "${CIRCLE_BRANCH}" = "master" ]; then
+
+              export AWS_ACCESS_KEY_ID=$PROD_IAM_ID
+              export AWS_SECRET_ACCESS_KEY=$PROD_IAM_KEY
+              echo "sts to the _prod_ account, only if the circleci job is triggered by master branch."
+              export IAM_ROLE=$PROD_IAM_ROLE
+              AWS_ACCOUNT_TYPE="prod"
+              APP_ENVIRONMENT="production"
+              echo "Using AWS account as: $AWS_ACCOUNT_TYPE, and application environment as: $APP_ENVIRONMENT."
+              #echo -e "AWS_ACCOUNT_TYPE $AWS_ACCOUNT_TYPE\nAPP_ENVIRONMENT $APP_ENVIRONMENT" > /workspace/.env
+              # export to bash environment
+              echo "export AWS_ACCOUNT_TYPE=${AWS_ACCOUNT_TYPE}" >> /workspace/.env
+              echo "export APP_ENVIRONMENT=${APP_ENVIRONMENT}" >> /workspace/.env
+
+            else
+              echo "Default: sts to the _nonprod_ account for lower environments."
+
+              export AWS_ACCESS_KEY_ID=$NONPROD_IAM_ID
+              export AWS_SECRET_ACCESS_KEY=$NONPROD_IAM_KEY
+              export IAM_ROLE=$NONPROD_IAM_ROLE
+              AWS_ACCOUNT_TYPE="nonprod"
+              BRANCH_STEM=${CIRCLE_BRANCH/\/*//}
+              APP_ENVIRONMENT=$(echo -e 'develop uat' | awk -vX=$BRANCH_STEM '$1 == X { print $2 }')
+              # default application environment for non matching branch mapping.
+                if [ -z "${APP_ENVIRONMENT}" ]; then
+                  APP_ENVIRONMENT="uat"
+                fi
+              echo "Using AWS account as: $AWS_ACCOUNT_TYPE, and application environment as: $APP_ENVIRONMENT."
+              #echo -e "AWS_ACCOUNT_TYPE $AWS_ACCOUNT_TYPE\nAPP_ENVIRONMENT $APP_ENVIRONMENT" > /workspace/.env
+              # export to bash environment
+              echo "export AWS_ACCOUNT_TYPE=${AWS_ACCOUNT_TYPE}" >> /workspace/.env
+              echo "export APP_ENVIRONMENT=${APP_ENVIRONMENT}" >> /workspace/.env
+
+            fi
+            echo Assume role
+            aws sts assume-role --role-session-name circle --role-arn $IAM_ROLE | jq -r '.Credentials | "[default]\naws_access_key_id = \(.AccessKeyId)\naws_secret_access_key = \(.SecretAccessKey)\naws_session_token = \(.SessionToken)\naws_security_token = \(.SessionToken)\nregion = eu-west-1"' > /workspace/.aws/credentials
+
+      - persist_to_workspace:
+          root: /workspace
+          paths:
+            - .aws/credentials
+            - .env
+
+    <<: *bake_container_config
+    steps:
+      - checkout
+      - run:
+          name: Halt/Stop Job if commit message not like bake_middleware
+          command: |
+            COMMIT_MSG=$(git log --format=oneline -n 1 $CIRCLE_SHA1)
+            if [[ *"${COMMIT_MSG,,}"* != *"[bake_middleware]"* ]]; then
+              echo "[bake_middleware] not detected. Stopping. This job needs to be run only to bake AMI."
+              circleci step halt
+            fi
+      - run: *bake_container_packages
+      - run: *bake_container_pip_req
+      - run: *get_public_ip
+      - add_ssh_keys: *add_ssh_keys_infra_modules
+      - run: *infra_modules_checkout
+      - *attach_workspace
+      - run: *load_bash_env
+      - run:
+          name: "Bake middleware AMI"
+          working_directory: ansible
+          command: |
+              export IAM_PROFILE=$(aws iam list-instance-profiles --query InstanceProfiles[] | jq -r '.[].InstanceProfileName | select(test("ws-middleware"))')
+              echo $IAM_PROFILE
+              export BUILD_IP="$(cat ../.my_ip)/32"
+              echo $BUILD_IP
+              export ANSIBLE_CONNECTION_TYPE="winrm"
+              packer validate config/${APP_NAME}/win-packer.json
+              PACKER_LOG=1 packer build config/${APP_NAME}/win-packer.json
+          no_output_timeout: 1h
+ 
+
+    docker:
+      - image: gandhark/circlecipython3ssm:latest
+    # Circle Working directory by default for this container is /root/project
+    # Homedir for this container is /root
+    steps:
+      - checkout
+      - run:
+          name: Halt/Stop Job if commit message like bake_points
+          command: |
+            COMMIT_MSG=$(git log --format=oneline -n 1 $CIRCLE_SHA1)
+            if [[ *"${COMMIT_MSG,,}"* == *"[bake_middleware]"* ]]; then
+              echo "[bake_middleware] detected. Stopping. This job needs to be run only on launched instance."
+              circleci step halt
+            fi
+      - *attach_workspace
+      - add_ssh_keys: *add_ssh_keys_infra_modules
+      - run: *infra_modules_checkout
+      - run: *load_bash_env
+      - run:
+          name: "Execute ansible playbook using ssm connection"
+          working_directory: ansible
+          command: |
+            export ANSIBLE_CONNECTION_TYPE="ssm"
+            export ANSIBLE_PERSISTENT_COMMAND_TIMEOUT=6000
+            echo Running Ansible using $ANSIBLE_CONNECTION_TYPE connection plugin in $APP_ENVIRONMENT environment
+            instance_id=$(aws ec2 describe-instances --filter "Name=tag:Name,Values=${APP_ENVIRONMENT}-${APP_PARENT}-${APP_NAME}-server" "Name=instance-state-name,Values=running" --output text --query 'Reservations[*].Instances[*].InstanceId')
+            echo -e "[${APP_ENVIRONMENT}]\n${instance_id}" > config/${APP_NAME}/inv/ssm.tmp
+            cat config/${APP_NAME}/inv/ssm.tmp
+            ansible-playbook -i config/${APP_NAME}/inv/ssm.tmp -c $ANSIBLE_CONNECTION_TYPE -e "targethosts=$APP_ENVIRONMENT" play-middlewarefx-site.yml -vvvvv --tags win_encrypt_webconfig,win_middleware_service #--tags "win_encrypt_webconfig" #--tags "" #--skip-tags "download_s3_objects,win_cloudwatch_agent,win_iis_site,win_unzip,nssm_s3_sync,points,points_scheduler_service,win_xml,win_service"
+          no_output_timeout: 30m
+
+  infra:
+    docker:
+      - image: gandhark/ansibleterraformpython3:2.8
+    # Circle Working directory by default for this container is /root/project
+    # Homedir for this container is /root
+    steps:
+      - checkout
+      - *attach_workspace
+      - add_ssh_keys: *add_ssh_keys_infra_modules
+      - run: *load_bash_env
+      - run: *packer_cleanup
+      - run:
+          name: "Execute ansible playbook to deploy infrastructure"
+          command: |
+            #export AWS_ACCOUNT_TYPE=$(cat ~/.env | grep 'AWS_ACCOUNT_TYPE' | awk -F " "  '{print $2}')
+            #export APP_ENVIRONMENT=$(cat ~/.env | grep 'APP_ENVIRONMENT' | awk -F " "  '{print $2}')
+            cd ansible && ansible-playbook -i hosts site.yml  -vvvv
+          no_output_timeout: 1h
+
 workflows:
+  version: 2
   build:
     jobs:
-    - sts
-    - infra:
-        filters:
-          branches:
-            only:
-            - develop
-        requires:
-        - sts
-        - argos_bake
-    - argos_bake:
-        filters:
-          branches:
-            only:
-            - feature/packer
-        requires:
-        - sts
-    - argos_ssm:
-        filters:
-          branches:
-            only:
-            - develop
-            - master
-        requires:
-        - sts
-        - infra
-  version: 2
+      - sts
+      - infra:
+          requires:
+            - sts
+            - middleware_bake
+          filters:
+            branches:
+              only:
+                - develop
+                  #- master
+      - middleware_bake:
+          requires:
+            - sts
+          filters:
+            branches:
+              only:
+                - feature/packer 
+      - middleware_ssm:
+          requires:
+            - sts
+            - infra
+          filters:
+            branches:
+              only:
+                - develop
+                - master
