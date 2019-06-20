@@ -1,148 +1,162 @@
-version: 2
 jobs:
-
-  build-aws-env:
+  infra:
     docker:
-      - image: tvxact/aws:0.0.3
+    - image: gandhark/ansibleterraformpython3:2.8
     steps:
-      - run:
-          name: Install builder OS packages
-          command: >
-            apk add --no-progress --no-cache
-            python
-            py-pip
-            libffi
-            python-dev
-            libffi-dev
-            gcc
-            musl-dev
-            openssl-dev
-            curl
-            jq
-            ruby
-            ruby-dev
-            build-base
-            libxml2-dev
-            libxslt-dev
-            linux-headers
-            py-psutil
-            jpeg-dev
-            zlib-dev
-            jq
-            git
-            nodejs
-            nodejs-npm
-      - checkout
-
-      - run:
-          name: Install Python packages
-          working_directory: ansible
-          command: >
-            pip install -q -r requirements.txt
-      - run:
-          name: Install Ruby packages
-          working_directory: ansible
-          command: >
-            gem install bundler --no-ri --no-rdoc &&
-            bundle
-      - run:
-          name: Install Entropy scrubber
-          working_directory: ansible
-          command: |
-            cat << EOF > entropy.py
-            #!/usr/bin/python -u
-            import math
-            import sys
-            def entropy(string):
-                prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
-                return - sum([p * math.log(p) / math.log(2.0) for p in prob])
-            for l in sys.stdin.readlines():
-                for a in l.split(' '):
-                    if entropy(a) > 3.5:
-                        print('*')
-                    else:
-                        sys.stdout.write(a)
-                    sys.stdout.write(' ')
-                sys.stdout.flush()
-            EOF
-            chmod +x entropy.py
-            cat entropy.py
-      - run:
-          name: Set FCP Adapter env from branch
-          shell: /usr/bin/python
-          command: |
-            import os, sys
-            branches = {'feature':'dev',
-                        'develop': 'sit',
-                        'release': 'uat',
-                        'hotfix': 'preprod',
-                        'CLDOPS-58': 'dev',
-                        'master': 'preprod'}
-            base_branch = os.getenv('CIRCLE_BRANCH').split('/')[0]
-            if base_branch not in branches.keys():
-                print('Skipping deployments from {}'.format(base_branch))
-                sys.exit(1)
-            with open(".fcpadapter_env", "w") as f:
-                f.write(branches[base_branch])
-            with open(".fcpadapter_branch", "w") as f:
-                f.write(base_branch)
-      - run:
-          name: Set AWS Credentials env
-          shell: /bin/bash
-          command: |
-            export ASSUME_ARN="Role-ARN will go here"
-            if /usr/bin/git log -1 --pretty=%B | /bin/cat | /bin/grep -i '\[USE PROD ACCOUNT\]'; then
-              echo '[USE PROD ACCOUNT] Deploying to production account'
-              export ASSUME_ARN="Prod ROle-ARN will go here"
-              echo 'production' > .fcpadapter_env
-            else
-              echo 'Deploying to nonprod'
-            fi
-            export AWS_ACCESS_KEY_ID="$IAM_ID"
-            export AWS_SECRET_ACCESS_KEY="$IAM_KEY"
-            export AWS_DEFAULT_REGION="eu-west-1"
-            CREDS=$(aws sts assume-role --role-arn $ASSUME_ARN --role-session-name ci-build-fcpadapter --duration-seconds 28800)
-            cat << EOF > .aws_creds
-            export AWS_DEFAULT_REGION="eu-west-1"
-            export AWS_ACCESS_KEY_ID=$(jq -r .Credentials.AccessKeyId <<< $CREDS)
-            export AWS_SECRET_ACCESS_KEY=$(jq -r .Credentials.SecretAccessKey <<< $CREDS)
-            export AWS_SESSION_TOKEN=$(jq -r .Credentials.SessionToken <<< $CREDS)
-            export no_proxy='*'
-            EOF
-      - run:
-          name: Deploy Infrastructure into AWS
-          working_directory: ansible
-          command: |
-            export ACT_ENV=$(cat ../.fcpadapter_env)
-            echo "Deploying to $ACT_ENV"
-            source ../.aws_creds
-            ansible-playbook -vvv -i inv/$ACT_ENV --vault-password-file=../unlock_vault site.yml --skip-tags=vagrant_only
-          no_output_timeout: 60m
-
-      - run:
-          name: Install Serverless CLI and dependencies
-          shell: /bin/bash
-          command: |
-            npm install
-            npm config set unsafe-perm true
-            npm install -g serverless
-            serverless --version
-      - run:
-          name: Deploy FCP Adapter as AWS Lambda
-          shell: /bin/bash
-          command: |
-            source .aws_creds
-            serverless config credentials --provider aws --key $AWS_ACCESS_KEY_ID --secret $AWS_SECRET_ACCESS_KEY
-            export FCP_ENV=$(cat .fcpadapter_env)
-            echo "Deploying To $FCP_ENV"
-            serverless create_domain --verbose --stage $FCP_ENV
-            serverless deploy --verbose --stage $FCP_ENV
-          no_output_timeout: 60m
-
-
-
+    - checkout
+    - attach_workspace:
+        at: ~/
+    - add_ssh_keys:
+        fingerprints:
+        - 7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d
+    - run:
+        command: |
+          cat ~/.env >> $BASH_ENV
+          echo "export APP_PARENT=ws" >> ${BASH_ENV}
+          echo "export APP_NAME=argosfx" >> ${BASH_ENV}
+          echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
+          echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
+          echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
+          echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
+          echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
+          cat ${BASH_ENV}
+        name: Export shared environment variables for argosfx.
+    - run:
+        Name: Delete any SecurityGroups left by packer build.
+        command: |
+          export temp_sec_groups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=packer_* | jq -r '.SecurityGroups[]|.GroupId')
+          for group in $temp_sec_groups; do aws ec2 delete-security-group --group-id $group; done
+    - run:
+        command: |
+          #export AWS_ACCOUNT_TYPE=$(cat ~/.env | grep 'AWS_ACCOUNT_TYPE' | awk -F " "  '{print $2}')
+          #export APP_ENVIRONMENT=$(cat ~/.env | grep 'APP_ENVIRONMENT' | awk -F " "  '{print $2}')
+          cd ansible && ansible-playbook -i hosts site.yml  -vvvv
+        name: Execute ansible playbook to deploy infrastructure
+        no_output_timeout: 1h
+  sts:
+    docker:
+    - image: gandhark/circlecipython3ssm:latest
+    steps:
+    - checkout
+    - run:
+        command: |
+          COMMIT_MSG=$(git log --format=oneline -n 1 $CIRCLE_SHA1)
+          if [[ *"${COMMIT_MSG,,}"* == *"[bake_argos]"* ]]; then
+            echo "[bake_argos] detected. Stopping. This job needs to be run only on launched instance."
+            circleci step halt
+          fi
+        name: Halt/Stop Job if commit message like bake_points
+    - attach_workspace:
+        at: ~/
+    - add_ssh_keys:
+        fingerprints:
+        - 7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d
+    - run:
+        command: |
+          GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:travelex/it-infra-modules.git ~/it-infra-modules
+          cp -Rf ~/it-infra-modules/ansible/roles/* ./ansible/roles/
+        name: Clone it-infra-modules repository to get generic ansible roles
+    - run:
+        command: |
+          cat ~/.env >> $BASH_ENV
+          echo "export APP_PARENT=ws" >> ${BASH_ENV}
+          echo "export APP_NAME=argosfx" >> ${BASH_ENV}
+          echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
+          echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
+          echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
+          echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
+          echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
+          cat ${BASH_ENV}
+        name: Export shared environment variables for argosfx.
+    - run:
+        command: |
+          export ANSIBLE_CONNECTION_TYPE="ssm"
+          export ANSIBLE_PERSISTENT_COMMAND_TIMEOUT=6000
+          echo Running Ansible using $ANSIBLE_CONNECTION_TYPE connection plugin in $APP_ENVIRONMENT environment
+          instance_id=$(aws ec2 describe-instances --filter "Name=tag:Name,Values=${APP_ENVIRONMENT}-${APP_PARENT}-${APP_NAME}-server" "Name=instance-state-name,Values=running" --output text --query 'Reservations[*].Instances[*].InstanceId')
+          echo -e "[${APP_ENVIRONMENT}]\n${instance_id}" > config/${APP_NAME}/inv/ssm.tmp
+          cat config/${APP_NAME}/inv/ssm.tmp
+          ansible-playbook -i config/${APP_NAME}/inv/ssm.tmp -c $ANSIBLE_CONNECTION_TYPE -e "targethosts=$APP_ENVIRONMENT" play-argosfx-site.yml -vvvvv --tags win_encrypt_webconfig,win_argos_service #--tags "win_encrypt_webconfig" #--tags "" #--skip-tags "download_s3_objects,win_cloudwatch_agent,win_iis_site,win_unzip,nssm_s3_sync,points,points_scheduler_service,win_xml,win_service"
+        name: Execute ansible playbook using ssm connection
+        no_output_timeout: 30m
+        working_directory: ansible
+references:
+  add_ssh_keys_infra_modules:
+    fingerprints:
+    - 7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d
+  attach_workspace:
+    attach_workspace:
+      at: ~/
+  bake_container_config:
+    docker:
+    - image: hashicorp/packer
+  bake_container_packages:
+    command: |
+      apk add --no-progress --no-cache python py-pip libffi python-dev libffi-dev gcc musl-dev openssl-dev openssh openssh-client curl jq ruby ruby-dev build-base libxml2-dev libxslt-dev && pip install --upgrade pip awscli ansible boto3 botocore
+    name: Install builder OS packages
+  bake_container_pip_req:
+    command: |
+      pip install -q -r requirements.txt
+    name: Install Python packages
+    working_directory: ansible
+  get_public_ip:
+    command: |
+      curl -s ifconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
+      if [ $? -ne 0 ]; then
+        echo 'ifconfig failed'
+        curl -s ipconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
+      fi
+      cat .my_ip
+    name: Discover my IP
+  infra_modules_checkout:
+    command: |
+      GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:travelex/it-infra-modules.git ~/it-infra-modules
+      cp -Rf ~/it-infra-modules/ansible/roles/* ./ansible/roles/
+    name: Clone it-infra-modules repository to get generic ansible roles
+  load_bash_env:
+    command: |
+      cat ~/.env >> $BASH_ENV
+      echo "export APP_PARENT=ws" >> ${BASH_ENV}
+      echo "export APP_NAME=argosfx" >> ${BASH_ENV}
+      echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
+      echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
+      echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
+      echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
+      echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
+      cat ${BASH_ENV}
+    name: Export shared environment variables for argosfx.
+  packer_cleanup:
+    Name: Delete any SecurityGroups left by packer build.
+    command: |
+      export temp_sec_groups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=packer_* | jq -r '.SecurityGroups[]|.GroupId')
+      for group in $temp_sec_groups; do aws ec2 delete-security-group --group-id $group; done
+version: 2.0
 workflows:
-  version: 2
-  build-aws:
+  build:
     jobs:
-      - build-aws-env
+    - sts
+    - infra:
+        filters:
+          branches:
+            only:
+            - develop
+        requires:
+        - sts
+        - argos_bake
+    - argos_bake:
+        filters:
+          branches:
+            only:
+            - feature/packer
+        requires:
+        - sts
+    - argos_ssm:
+        filters:
+          branches:
+            only:
+            - develop
+            - master
+        requires:
+        - sts
+        - infra
+  version: 2
