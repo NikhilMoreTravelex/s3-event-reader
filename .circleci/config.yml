@@ -150,9 +150,9 @@ jobs:
           pwd
           ls -l .serverless
     persist_to_workspace:
-      root: /root/project
+      root: serverless
       paths:
-        - serverless/.serverless
+        - .serverless/s3-event-reader.zip
 
   infra:
     docker:
@@ -162,7 +162,7 @@ jobs:
     steps:
       - checkout
       - *attach_workspace
-      - run: pwd && ls -l serverless/.serverless
+      - run: pwd && ls -l && ls -la serverless
       - add_ssh_keys: *add_ssh_keys_infra_modules
       - run: *load_bash_env
       - run: *packer_cleanup
