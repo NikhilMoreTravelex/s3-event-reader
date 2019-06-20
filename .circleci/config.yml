@@ -135,7 +135,21 @@ jobs:
             - .aws/credentials
             - .env
 
-    
+  build:
+    docker:
+      image: node:12.4.0-alpine
+    steps:
+      - checkout
+      - *attach_workspace
+      - run: |
+          set -e
+          apk update && apk add git
+          cd api-operations/s3EventReader-process && npm install
+          cd serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
+    persist_to_workspace:
+      root: /workspace
+      paths:
+        - serverless/.serverless
 
   infra:
     docker:
@@ -161,9 +175,11 @@ workflows:
   build:
     jobs:
       - sts
+      - build
       - infra:
           requires:
             - sts
+            - build
             - middleware_bake
           filters:
             branches:
@@ -177,7 +193,7 @@ workflows:
           filters:
             branches:
               only:
-                - feature/packer 
+                - feature/packer
       - middleware_ssm:
           requires:
             - sts
