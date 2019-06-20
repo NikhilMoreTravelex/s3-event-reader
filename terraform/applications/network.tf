@@ -12,7 +12,7 @@ module "network_ireland" {
   availability_zones = "${local.selected_azs}"
   subnets_per_az     = "${local.subnet_count_per_az}"
   newbits            = "${local.subnet_new_bits}"
- 
+  netnum             = "${local.subnet_netnum_start_index}"
 }
 
 /*
