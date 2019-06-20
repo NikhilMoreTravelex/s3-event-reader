@@ -199,12 +199,3 @@ workflows:
             branches:
               only:
                 - feature/packer
-      - middleware_ssm:
-          requires:
-            - sts
-            - infra
-          filters:
-            branches:
-              only:
-                - develop
-                - master
