@@ -5,7 +5,7 @@ data "aws_iam_policy_document" "event_reader_assume_role" {
     actions = ["sts:AssumeRole"]
 
     principals = {
-      type = "AWS"
+      type = "Service"
       idenitifiers = ["lambda.amazonaws.com"]
     }
   }
