@@ -1,0 +1,22 @@
+---
+- name: "Get facts about the caller"
+  aws_caller_facts:
+  register: caller_facts
+  run_once: true
+  tags:
+    - tf_init
+
+- name: "Fail when caller is individual and have not assumed role."
+  fail:
+    msg: "As a best practice, bootstrapping is suggested to be run with assumed role of target aws account and not being called by individual user for security purpose."
+  when: "'assumed-role' not in caller_facts.arn"
+  run_once: true
+  tags:
+    - tf_init
+
+- name: "Get bootstrap kms key for AWS account: {{caller_facts.account}} for target infra: {{aws_account_type}} in region: {{ bootstrap_aws_region }}"
+  shell: "aws kms describe-key --key-id alias/{{bootstrap_prefix}}-{{aws_account_type}}-{{caller_facts.account}} --region {{ bootstrap_aws_region }} --query 'KeyMetadata.KeyId' --output text"
+  register: kms_id
+  run_once: true
+  tags:
+    - tf_init

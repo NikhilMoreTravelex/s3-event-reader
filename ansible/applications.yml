@@ -1,0 +1,10 @@
+---
+# This playbook will execute the inventory for applications account
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  serial: 1
+  roles:
+    - tf_init
+    - applications

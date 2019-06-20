@@ -1,0 +1,457 @@
+---
+env_name: "{{ lookup('env', 'APP_ENVIRONMENT') }}"
+
+env_alias:
+  uat:
+    name: "uat"
+  production:
+    name: "prod"
+
+# Configuration values from Terraform outputs.
+
+env_config:
+  uat:
+    config_bucket: "uat-ws-argosfx-config-20190428112051328600000001"
+    #data_kms_id: "arn:aws:kms:eu-west-1:038727617354:key/c3b8d86f-1f24-460c-8af5-f97ef20cd37c"
+    #storage_gateway_bucket: "nonprod-rts-services-share"
+    rds_endpoint: "uat-ws-argosfx.cu21s6gvuylt.eu-west-1.rds.amazonaws.com"
+    rds_db_name: "ARGOS"
+    #storage_gateway_kms_id: "arn:aws:kms:eu-west-1:489510786593:key/74bd45f3-eae2-4e05-aa6b-289fbdaa574c"
+  production: 
+    config_bucket: "uat-ws-argosfx-config-20190428112051328600000001"
+    #data_kms_id: "arn:aws:kms:eu-west-1:038727617354:key/c3b8d86f-1f24-460c-8af5-f97ef20cd37c"
+    #storage_gateway_bucket: "nonprod-rts-services-share"
+    rds_endpoint: "uat-ws-argosfx.cu21s6gvuylt.eu-west-1.rds.amazonaws.com"
+    rds_db_name: "ARGOS"
+    #storage_gateway_kms_id: "arn:aws:kms:eu-west-1:489510786593:key/74bd45f3-eae2-4e05-aa6b-289fbdaa574c"
+
+infra_outputs:
+  ssm_param_name:
+    #lc_web: "/{{ env_name }}/rts/points/rds/lcweb/password"
+          argos_admin: "/{{ env_name }}/ws/argosfx/rds/password"
+    #ec2_private_key: "/{{ env_name }}/rts/points/ec2/points/privatekey"
+    #gpg_ua_pub: "/{{ env_name }}/rts/points/gpg/pubkey/ua"
+    #gpg_tvx_sec: "/{{ env_name }}/rts/points/gpg/seckey/tvx"
+    #gpg_tvx_pub: "/{{ env_name }}/rts/points/gpg/pubkey/tvx"
+    #sftp_tvx_sec: "/{{ env_name }}/rts/points/sftp/seckey/tvx"
+    #sftp_tvx_pub: "/{{ env_name }}/rts/points/sftp/pubkey/tvx"
+    #sftp_tvx_ua_sec: "/{{ env_name }}/rts/points/sftp/seckey/tvx_ua"
+    #sftp_tvx_ua_pub: "/{{ env_name }}/rts/points/sftp/pubkey/tvx_ua"
+
+temp_location: "C:\\Temp\\Launch_Configs"
+application: "Argosfx"
+app_root: "C:\\Travelex"
+app_home: "{{ app_root }}\\{{ application }}"
+app_archive: "{{ app_home }}\\Archive"
+app_iis: "{{ app_home }}\\Web\\UI"
+logs_path: "{{ app_root }}\\Logs"
+
+win_aspnet: "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319" 
+
+app_service: "{{ app_home }}\\Win\\Services"
+app_taskmarketengine_service_name: "Travelex.ARGOS.TaskMakerEngine"
+app_tasksubscriberengine_name: "Travelex.ARGOS.TaskSubscriberEngine"
+
+license_path: "C:\\ABCpdf"
+
+# List of windows features to be enabled on instance.
+win_features:
+  state: "present"
+  feature_list:
+    - FileAndStorage-Services
+    - Storage-Services
+    - Web-Server
+    - Web-WebServer
+    - Web-Common-Http
+    - Web-Default-Doc
+    - Web-Dir-Browsing
+    - Web-Http-Errors
+    - Web-Static-Content
+    - Web-Health
+    - Web-Http-Logging
+    - Web-Performance
+    - Web-Stat-Compression
+    - Web-Security
+    - Web-Filtering
+    - Web-Basic-Auth
+    - Web-CertProvider
+    - Web-Client-Auth
+    - Web-Digest-Auth
+    - Web-Cert-Auth
+    - Web-IP-Security
+    - Web-Url-Auth
+    - Web-Windows-Auth
+    - Web-App-Dev
+    - Web-Net-Ext45
+    - Web-AppInit
+    - Web-ASP
+    - Web-Asp-Net45
+    - Web-CGI
+    - Web-ISAPI-Ext
+    - Web-ISAPI-Filter
+    - Web-Includes
+    - Web-WebSockets
+    - Web-Ftp-Server
+    - Web-Ftp-Service
+    - Web-Ftp-Ext
+    - Web-Mgmt-Tools
+    - Web-Mgmt-Console
+    - NET-Framework-Features
+    - NET-Framework-Core
+    - NET-Framework-45-Features
+    - NET-Framework-45-Core
+    - NET-Framework-45-ASPNET
+    - NET-WCF-Services45
+    - NET-WCF-HTTP-Activation45
+    - NET-WCF-MSMQ-Activation45
+    - NET-WCF-Pipe-Activation45
+    - NET-WCF-TCP-Activation45
+    - NET-WCF-TCP-PortSharing45
+    - MSMQ
+    - MSMQ-Services
+    - MSMQ-Server
+    - MSMQ-Directory
+    - MSMQ-Triggers
+    - MSMQ-DCOM
+    - FS-SMB1
+    - Telnet-Client
+    - Windows-Defender-Features
+    - Windows-Defender
+    - Windows-Defender-Gui
+    - PowerShellRoot
+    - PowerShell
+    - PowerShell-V2
+    - PowerShell-ISE
+    - WAS
+    - WAS-Process-Model
+    - WAS-Config-APIs
+    - WoW64-Support
+
+# List of windows directory structure to be created on instance.
+create_directory_layout:
+  state: "directory"
+  path_list:
+    - "{{ app_home }}"
+    - "{{ logs_path }}"      
+    - "{{ temp_location }}"
+    - "{{ app_iis }}"
+    - "{{ app_archive }}"
+
+# List of packages/binaries to download from s3.
+# Map list with type as bake, will be downloaded during AMI bakery process. Otherwise, type as launch will be downloaded during instance launch/bootstrap process.
+# This configuration is defined in play-points-site.yml
+
+download_s3_objects:
+  local_dir_path: "{{ temp_location }}"
+  bucket_prefix:
+    - path: "launch-configs/AWSCLI64PY3.msi"
+      type: bake
+    - path: "launch-configs/msodbcsql.msi"
+      type: bake
+    - path: "launch-configs/MsSqlCmdLnUtils.msi"
+      type: bake
+    - path: "launch-configs/cloudwatch_agent.zip"
+      type: bake
+    - path: "launch-configs/nssm-2.24.zip"
+      type: bake
+    - path: "build-artifacts/Argos.zip"
+      type: launch
+    - path: "launch-configs/ABCpdf.zip"
+      type: bake
+
+
+win_get_url:
+  local_dir_path: "{{ temp_location }}"
+  download_list:
+    - url: "https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi"
+      type: bake
+
+
+# List of windows programs to be installed on instance.
+win_package:
+  local_dir_path: "{{ temp_location }}"
+  state: "present"
+  package_list:
+    - name: "AWSCLI"
+      path: "{{ temp_location }}\\AWSCLI64PY3.msi"
+      product_id: "{AA2C9820-22FE-4670-B49A-83C687E30A92}"
+      arguments: "/qn"
+
+    - name: "ABCpdf-extract"
+      path: "C:\\ABCpdf\\ABCpdf.NET.exe"
+      product_id: "ABCpdf8104"
+      arguments: "/T:C:\\ABCpdf /C"
+
+    - name: "ABCpdf-install"
+      path: "C:\\ABCpdf\\Installer.msi"
+      product_id: "ABCpdf8104"
+      arguments: "/q"
+
+    - name: "MicrosoftODBCDriver"
+      path: "{{ temp_location }}\\msodbcsql.msi"
+      product_id: "{7E425BFB-1DEB-499F-8F3F-3522A6E98754}"
+      arguments: "/qn IACCEPTMSODBCSQLLICENSETERMS=YES"
+
+    - name: "MicrosoftSQLCLI"
+      path: "{{ temp_location }}\\MsSqlCmdLnUtils.msi"
+      product_id: "{48C4C5F8-2821-465B-BBF6-6F45EE3B1584}"
+      arguments: "/qn IACCEPTMSSQLCMDLNUTILSLICENSETERMS=YES"
+
+    - name: "AmazonCloudWatchAgent"
+      path: "{{ temp_location }}\\amazon-cloudwatch-agent.msi"
+      product_id: "{9BFE02BD-3B94-43E7-BC1C-C4313878410A}"
+      arguments: "/qn"
+
+
+# Setup Unified Cloudwatch Agent to collect instance metrics and logs monitoring
+win_cloudwatch_agent:
+  config_filepath: "{{ playbook_dir }}/cwa-argos-config.json.j2"
+  local_agent_home: "C:\\Program Files\\Amazon\\AmazonCloudWatchAgent"
+
+
+# List of windows IIS configuration to be set on instance.
+
+win_iis_site:
+  app_pool_attributes:
+    managedPipelineMode: Integrated
+    managedRuntimeVersion: v4.0
+    processModel.identityType: LocalSystem
+    enable32BitAppOnWin64: True
+  site_list:
+    - name: "Default Web Site"
+      state: "absent"
+      application_pool: "DefaultAppPool"
+
+    - name: "Argos"
+      state: "started"
+      physical_path: "{{ app_iis }}"
+      application_pool: "Argos"
+      ssl:
+        enabled: yes
+        friendly_name: "{{ application }}"
+        dns_name: "$env:computername"
+      protocol: "https"
+
+      # List of packages/binaries to extract in instance (this is downloaded from s3 in above step.)
+# Map list with type as bake, will be extracted during AMI bakery process. Otherwise, type as launch will be extracted during instance launch/bootstrap process.
+# This configuration is defined in play-points-site.yml
+
+win_unzip:
+  state: "present"
+  path_list:
+    - src: "{{ temp_location }}\\nssm-2.24.zip"
+      dest: "C:\\"
+      idempotency: "C:\\nssm-2.24"
+      type: bake
+
+    - src: "{{ temp_location }}\\ABCpdf.zip"
+      dest: "C:\\"
+      idempotency: "C:\\ABCpdf"
+      type: bake
+
+    - src: "{{ temp_location }}\\Argos.zip"
+      dest: "{{ app_home }}"
+      idempotency: "{{ app_home }}\\Win"
+      type: launch
+
+win_argos_service:
+  state: "present"
+  win_service_list:
+    - name: "{{ app_tasksubscriberengine_name }}"
+      description: "{{ app_tasksubscriberengine_name }}"
+      display_name: "{{ app_tasksubscriberengine_name }}"
+      state: "started"
+      path: "{{ app_service }}\\{{ app_tasksubscriberengine_name }}\\{{ app_tasksubscriberengine_name }}.exe"
+      type: launch
+
+    - name: "{{ app_taskmarketengine_service_name }}"
+      description: "{{ app_taskmarketengine_service_name }}"
+      display_name: "{{ app_taskmarketengine_service_name }}"
+      state: "started"
+      path: "{{ app_service }}\\{{ app_taskmarketengine_service_name }}\\{{ app_taskmarketengine_service_name }}.exe"
+      type: launch
+
+win_encrypt_webconfig:
+  win_webconfig_list:
+    - name: "web.config"
+      path: "{{ app_iis }}"
+
+    - name: "{{ app_tasksubscriberengine_name }}.exe.config"
+      path: "{{ app_service }}\\{{ app_tasksubscriberengine_name }}"
+
+    - name: "{{ app_taskmarketengine_service_name }}.exe.config"
+      path: "{{ app_service }}\\{{ app_taskmarketengine_service_name }}"
+
+win_msmq_queue:
+   win_msmq_list:
+    - "ArgosTaskQueue"  
+    - "ArgosTaskMakerQueue"
+
+# Set up Nssm service to sync data from s3, or vice-versa.
+
+      #nssm_s3_sync:
+      #  sync_home: "{{ app_root }}\\s3sync"
+      #sync_list:
+      #- name: "S3Sync-Backup"
+      #config_name: s3_backup.json
+      #poll_period: 60
+      #stdout_filename: "s3_backup_stdout.txt"
+      #stderr_filename: "s3_backup_stderr.txt"
+      #status: "{{ 'present' if type == 'bake' else 'started' }}"
+      #startmode: "{{ 'manual' if type == 'bake' else 'auto' }}"
+
+      #- name: "S3Sync-RTSDayendImport"
+      #config_name: dayend_import_config.json
+      #poll_period: 300
+      #stdout_filename: "dayend_import_stdout.txt"
+      #stderr_filename: "dayend_import_stderr.txt"
+      #status: "{{ 'present' if type == 'bake' else 'started' }}"
+      #startmode: "{{ 'manual' if type == 'bake' else 'auto' }}"
+
+
+      #points:
+      #key_home: "{{ app_root }}\\Lcards\\Keys"
+      #sftp_key_home: "{{ app_root }}\\Lcards\\Keys\\SFTP"
+      #gpg_key_home: "{{ app_root }}\\Lcards\\Keys\\GPG"
+      #ssm_list:
+      #- param: "{{ infra_outputs['ssm_param_name']['gpg_ua_pub'] }}"
+      #dest: "{{ app_root }}\\Lcards\\Keys\\GPG\\ua_pub.gpg"
+      #type: gpg
+      #no_log: false
+
+      #- param: "{{ infra_outputs['ssm_param_name']['gpg_tvx_sec'] }}"
+      #dest: "{{ app_root }}\\Lcards\\Keys\\GPG\\tvx_sec.gpg"
+      #type: gpg
+      #no_log: true
+
+      #- param: "{{ infra_outputs['ssm_param_name']['sftp_tvx_sec'] }}"
+      #dest: "{{ app_root }}\\Lcards\\Keys\\SFTP\\tvx_id_rsa"
+      #type: sftp
+      #no_log: true
+
+      #- param: "{{ infra_outputs['ssm_param_name']['sftp_tvx_ua_sec'] }}"
+      #dest: "{{ app_root }}\\Lcards\\Keys\\SFTP\\tvx_ua_id_rsa"
+      #type: sftp
+      #no_log: true
+
+#### Replacing the attrbutes of XML config files.
+win_xml:
+ transform_list:
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_taskmarketengine_service_name }}\\Travelex.ARGOS.TaskMakerEngine.exe.config"
+      xpath: '//configuration/travelex.servers/servers/add[@type="{{ env_alias[env_name][''name''] }}"]'
+      attribute: 'name'
+      fragment: "{{ ansible_hostname }}"
+      type: attribute
+      no_log: false
+
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_tasksubscriberengine_name }}\\Travelex.ARGOS.TaskSubscriberEngine.exe.config"
+      xpath: '//configuration/travelex.servers/servers/add[@type="{{ env_alias[env_name][''name''] }}"]'
+      attribute: 'name'
+      fragment: "{{ ansible_hostname }}"
+      type: attribute
+      no_log: false
+
+    - backup: "no"
+      path: "{{ app_iis }}\\Web.config"
+      xpath: '//configuration/travelex.servers/servers/add[@type="{{ env_alias[env_name][''name''] }}"]'
+      attribute: 'name'
+      fragment: "{{ ansible_hostname }}"
+      type: attribute
+      no_log: false
+
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_taskmarketengine_service_name }}\\Log4Net.config"
+      xpath: '//log4net/appender[@name="SimpleDBAppender"]/connectionString'
+      attribute: 'value'
+      fragment: "Data Source={{ env_config[env_name]['rds_endpoint'] }};Initial Catalog={{ env_config[env_name]['rds_db_name'] }};User Id=db_admin; password={{ lookup('aws_ssm', infra_outputs['ssm_param_name']['argos_admin'] , decrypt=true) }};"
+      type: attribute
+      no_log: true
+
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_tasksubscriberengine_name }}\\Log4Net.config"
+      xpath: '//log4net/appender[@name="SimpleDBAppender"]/connectionString'
+      attribute: 'value'
+      fragment: "Data Source={{ env_config[env_name]['rds_endpoint'] }};Initial Catalog={{ env_config[env_name]['rds_db_name'] }};User Id=db_admin; password={{ lookup('aws_ssm', infra_outputs['ssm_param_name']['argos_admin'] , decrypt=true) }};"
+      type: attribute
+      no_log: true
+
+    - backup: "no"
+      path: "{{ app_iis }}\\Web.config"
+      xpath: '//configuration/connectionStrings/add[@name="ARGOS.Repository.{{ env_alias[env_name][''name''] }}"]'
+      attribute: 'connectionString'
+      fragment: "Data Source={{ env_config[env_name]['rds_endpoint'] }};Initial Catalog={{ env_config[env_name]['rds_db_name'] }};User Id=db_admin; password={{ lookup('aws_ssm', infra_outputs['ssm_param_name']['argos_admin'] , decrypt=true) }};"
+      type: attribute
+      no_log: true
+
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_taskmarketengine_service_name }}\\Travelex.ARGOS.TaskMakerEngine.exe.config"
+      xpath: '//configuration/appSettings/add[@key="ArchivePath"]'
+      attribute: 'value'
+      fragment: "{{ app_archive }}"
+      type: attribute
+      no_log: false
+
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_tasksubscriberengine_name }}\\Travelex.ARGOS.TaskSubscriberEngine.exe.config"
+      xpath: '//configuration/appSettings/add[@key="ArchivePath"]'
+      attribute: 'value'
+      fragment: "{{ app_archive }}"
+      type: attribute
+      no_log: false
+
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_taskmarketengine_service_name }}\\Travelex.ARGOS.TaskMakerEngine.exe.config"
+      xpath: '//configuration/connectionStrings/add[@name="ARGOS.Repository.{{ env_alias[env_name][''name''] }}"]'
+      attribute: 'connectionString'
+      fragment: "Data Source={{ env_config[env_name]['rds_endpoint'] }};Initial Catalog={{ env_config[env_name]['rds_db_name'] }};User Id=db_admin; password={{ lookup('aws_ssm', infra_outputs['ssm_param_name']['argos_admin'] , decrypt=true) }};"
+      type: attribute
+      no_log: true
+    
+    - backup: "no"
+      path: "{{ app_service }}\\{{ app_tasksubscriberengine_name }}\\Travelex.ARGOS.TaskSubscriberEngine.exe.config"
+      xpath: '//configuration/connectionStrings/add[@name="ARGOS.Repository.{{ env_alias[env_name][''name''] }}"]'
+      attribute: 'connectionString'
+      fragment: "Data Source={{ env_config[env_name]['rds_endpoint'] }};Initial Catalog={{ env_config[env_name]['rds_db_name'] }};User Id=db_admin; password={{ lookup('aws_ssm', infra_outputs['ssm_param_name']['argos_admin'] , decrypt=true) }};"
+      type: attribute
+      no_log: true
+
+############
+#########
+# SKIP roles - under bake: for AMI, and under launch: for Mutable instance/launch.
+# Role names
+
+# if you want to skip any role during AMI bakery process then declare it under "bake:".
+# if you want to skip any role during SSM/Running Instance then declare it under "launch:".
+
+#    win_features:
+#    create_directory_layout:
+#    download_s3_objects:
+#    win_get_url:
+#    win_package:
+#    win_cloudwatch_agent:
+#    win_unzip:
+#    win_iis_site:
+#    cleanup_directory:
+#    points_scheduler_service:
+#    win_service:
+#    nssm_s3_sync:
+
+
+########
+
+
+skip:
+  bake:
+    win_xml:
+    points:
+    points_scheduler_service:
+    win_service:
+
+  launch:
+    undo_winrm:
+    win_features:
+    create_directory_layout:
+    win_get_url:
+    win_package:

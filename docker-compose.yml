@@ -1,0 +1,8 @@
+version: "3"
+services:
+  npm:
+    image: node:12.4.0-alpine
+    working_dir: /project
+    command: '/bin/sh -c "apk update && apk add git && cd /project/api-operations/s3EventReader-process && npm install && cd /project/serverless && npm install"'
+    volumes:
+      - ./:/project

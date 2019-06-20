@@ -1,0 +1,40 @@
+---
+- name: "Check whether file exists or not"
+  win_stat:
+    path: "{{ item.path }}\\{{ item.name }}"
+  register: file_exist
+  with_items:
+    - "{{ win_webconfig_list }}"
+  tags:
+    - win_encrypt_webconfig
+
+#- debug: var=file_exist.results
+
+- name: "rename config file to web.config"
+  win_shell: "rename-item {{ item.item.name }} web.config"
+  args:
+    chdir: "{{ item.item.path }}"
+  when: item.item.name != "web.config" and item.stat.exists
+  with_items:
+    - "{{ file_exist.results }}"
+  tags:
+    - win_encrypt_webconfig
+
+- name: "encrypt web config file using aspnet_regiis utility"
+  win_shell: ".\\aspnet_regiis.exe -pef \"connectionStrings\" \"{{ item.item.path }}\""
+  args:
+    chdir: "{{ aspnet_regiis_path }}"
+  with_items:
+    - "{{ file_exist.results }}"
+  tags:
+    - win_encrypt_webconfig
+
+- name: "rename config file back to original name"
+  win_shell: "rename-item web.config {{ item.item.name }}"
+  args:
+    chdir: "{{ item.item.path }}"
+  with_items:
+    - "{{ file_exist.results }}"
+  tags:
+    - win_encrypt_webconfig
+

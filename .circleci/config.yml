@@ -1,0 +1,210 @@
+---
+version: 2.0
+
+references:
+
+  bake_container_config: &bake_container_config
+    docker:
+      - image: hashicorp/packer
+  # Circle Working directory by default for this container is /root/project
+  # Homedir for this container is /root
+
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: ~/
+  # Workspace is attached at container user homedir path. echo $HOME will print the path.
+
+  add_ssh_keys_infra_modules: &add_ssh_keys_infra_modules
+      fingerprints:
+        - "7a:0d:f9:08:c0:b2:54:9c:97:8a:f8:0f:9d:d7:2a:1d"
+  # it-infra-modules public key.
+  # This is required to checkout it-infra-modules repository and refers to its deploy key.
+
+  infra_modules_checkout: &infra_modules_checkout
+      name: Clone it-infra-modules repository to get generic ansible roles
+      command: |
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:travelex/it-infra-modules.git ~/it-infra-modules
+        cp -Rf ~/it-infra-modules/ansible/roles/* ./ansible/roles/
+
+  bake_container_packages: &bake_container_packages
+      name: Install builder OS packages
+      command: >
+        apk add --no-progress --no-cache
+        python
+        py-pip
+        libffi
+        python-dev
+        libffi-dev
+        gcc
+        musl-dev
+        openssl-dev
+        openssh
+        openssh-client
+        curl
+        jq
+        ruby
+        ruby-dev
+        build-base
+        libxml2-dev
+        libxslt-dev && pip install --upgrade pip awscli ansible boto3 botocore
+
+  bake_container_pip_req: &bake_container_pip_req
+      name: Install Python packages
+      working_directory: ansible
+      command: >
+        pip install -q -r requirements.txt
+
+  get_public_ip: &get_public_ip
+      name: Discover my IP
+      command: |
+        curl -s ifconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
+        if [ $? -ne 0 ]; then
+          echo 'ifconfig failed'
+          curl -s ipconfig.io/ip | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" > .my_ip
+        fi
+        cat .my_ip
+  packer_cleanup: &packer_cleanup
+      Name: Delete any SecurityGroups left by packer build.
+      command: |
+        export temp_sec_groups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=packer_* | jq -r '.SecurityGroups[]|.GroupId')
+        for group in $temp_sec_groups; do aws ec2 delete-security-group --group-id $group; done
+
+  load_bash_env: &load_bash_env
+      name: Export shared environment variables for middlewarefx.
+      command: |
+        cat ~/.env >> $BASH_ENV
+        echo "export APP_PARENT=ws" >> ${BASH_ENV}
+        echo "export APP_NAME=middlewarefx" >> ${BASH_ENV}
+        echo 'export AWS_DEFAULT_REGION="eu-west-1"' >> ${BASH_ENV}
+        echo 'export PACKER_LISTN_PORT="5986"' >> ${BASH_ENV}
+        echo 'export ANSIBLE_HDIR="$CIRCLE_WORKING_DIRECTORY/ansible"' >> ${BASH_ENV}
+        echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
+        echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
+        cat ${BASH_ENV}
+jobs:
+  sts:
+    docker:
+      - image: governmentpaas/awscli
+    # Circle Working directory by default for this container is /root/project
+    # Homedir for this container is /root
+    steps:
+      - run: apk add --update bash && mkdir -p /workspace/.aws
+      - run:
+          name: Initializing AWS credentials and detect environment for middlewarefx
+          command: |
+            if [ "${CIRCLE_BRANCH}" = "master" ]; then
+
+              export AWS_ACCESS_KEY_ID=$PROD_IAM_ID
+              export AWS_SECRET_ACCESS_KEY=$PROD_IAM_KEY
+              echo "sts to the _prod_ account, only if the circleci job is triggered by master branch."
+              export IAM_ROLE=$PROD_IAM_ROLE
+              AWS_ACCOUNT_TYPE="prod"
+              APP_ENVIRONMENT="production"
+              echo "Using AWS account as: $AWS_ACCOUNT_TYPE, and application environment as: $APP_ENVIRONMENT."
+              #echo -e "AWS_ACCOUNT_TYPE $AWS_ACCOUNT_TYPE\nAPP_ENVIRONMENT $APP_ENVIRONMENT" > /workspace/.env
+              # export to bash environment
+              echo "export AWS_ACCOUNT_TYPE=${AWS_ACCOUNT_TYPE}" >> /workspace/.env
+              echo "export APP_ENVIRONMENT=${APP_ENVIRONMENT}" >> /workspace/.env
+
+            else
+              echo "Default: sts to the _nonprod_ account for lower environments."
+
+              export AWS_ACCESS_KEY_ID=$NONPROD_IAM_ID
+              export AWS_SECRET_ACCESS_KEY=$NONPROD_IAM_KEY
+              export IAM_ROLE=$NONPROD_IAM_ROLE
+              AWS_ACCOUNT_TYPE="nonprod"
+              BRANCH_STEM=${CIRCLE_BRANCH/\/*//}
+              APP_ENVIRONMENT=$(echo -e 'develop uat' | awk -vX=$BRANCH_STEM '$1 == X { print $2 }')
+              # default application environment for non matching branch mapping.
+                if [ -z "${APP_ENVIRONMENT}" ]; then
+                  APP_ENVIRONMENT="uat"
+                fi
+              echo "Using AWS account as: $AWS_ACCOUNT_TYPE, and application environment as: $APP_ENVIRONMENT."
+              #echo -e "AWS_ACCOUNT_TYPE $AWS_ACCOUNT_TYPE\nAPP_ENVIRONMENT $APP_ENVIRONMENT" > /workspace/.env
+              # export to bash environment
+              echo "export AWS_ACCOUNT_TYPE=${AWS_ACCOUNT_TYPE}" >> /workspace/.env
+              echo "export APP_ENVIRONMENT=${APP_ENVIRONMENT}" >> /workspace/.env
+
+            fi
+            echo Assume role
+            aws sts assume-role --role-session-name circle --role-arn $IAM_ROLE | jq -r '.Credentials | "[default]\naws_access_key_id = \(.AccessKeyId)\naws_secret_access_key = \(.SecretAccessKey)\naws_session_token = \(.SessionToken)\naws_security_token = \(.SessionToken)\nregion = eu-west-1"' > /workspace/.aws/credentials
+
+      - persist_to_workspace:
+          root: /workspace
+          paths:
+            - .aws/credentials
+            - .env
+
+  build:
+    docker:
+      - image: node:12.4.0-alpine
+    steps:
+      - checkout
+      - *attach_workspace
+      - run: |
+          set -e
+          pwd
+          apk update && apk add git
+          cd api-operations/s3EventReader-process && npm install
+          cd ../../serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
+          pwd
+          ls -l .serverless
+
+      - persist_to_workspace:
+          root: /root/project
+          paths:
+            - serverless/.serverless/s3-event-reader.zip
+
+  infra:
+    docker:
+      - image: gandhark/ansibleterraformpython3:2.8
+    # Circle Working directory by default for this container is /root/project
+    # Homedir for this container is /root
+    steps:
+      - checkout
+      - *attach_workspace
+      - run: pwd && ls -la && ls -la /root/ && ls -la /root/serverless/.serverless/s3-event-reader.zip
+      - add_ssh_keys: *add_ssh_keys_infra_modules
+      - run: *load_bash_env
+      - run: *packer_cleanup
+      - run:
+          name: "Execute ansible playbook to deploy infrastructure"
+          command: |
+            #export AWS_ACCOUNT_TYPE=$(cat ~/.env | grep 'AWS_ACCOUNT_TYPE' | awk -F " "  '{print $2}')
+            #export APP_ENVIRONMENT=$(cat ~/.env | grep 'APP_ENVIRONMENT' | awk -F " "  '{print $2}')
+            cd ansible && ansible-playbook -i hosts site.yml  -vvvv
+          no_output_timeout: 1h
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - sts
+      - build
+      - infra:
+          requires:
+            - sts
+            - build
+            - middleware_bake
+          filters:
+            branches:
+              only:
+                - develop
+                - CLDOPS-58
+                  #- master
+      - middleware_bake:
+          requires:
+            - sts
+          filters:
+            branches:
+              only:
+                - feature/packer
+      - middleware_ssm:
+          requires:
+            - sts
+            - infra
+          filters:
+            branches:
+              only:
+                - develop
+                - master

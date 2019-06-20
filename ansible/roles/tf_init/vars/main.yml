@@ -1,0 +1,21 @@
+---
+# Read AWS_ACCOUNT_TYPE environment variable to get target AWS infrastructure [nonprod or prod]
+aws_account_type: "{{ lookup('env', 'AWS_ACCOUNT_TYPE') }}"
+
+# Read APP_ENVIRONMENT environment variable to get taget application environment
+app_env: "{{ lookup('env', 'APP_ENVIRONMENT') }}"
+
+#Read circle branch environment variable
+git_branch: "{{ lookup('env', 'CIRCLE_BRANCH') }}"
+
+bootstrap_prefix: "terraform-bootstrap"
+
+# bootstrap region for kms id. 
+bootstrap_aws_region: "eu-west-1"
+
+#Read APP_PARENT environment variable to get taget application environment
+app_parent: "{{ lookup('env', 'APP_PARENT') }}"
+
+#Read APP_NAME environment variable to get taget application environment
+app_name: "{{ lookup('env', 'APP_NAME') }}"
+

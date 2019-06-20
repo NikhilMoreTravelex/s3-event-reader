@@ -1,0 +1,85 @@
+{
+  "_intro": "This is a Packer (https://packer.io) template",
+  "variables": {
+    "git_sha": "{{env `GIT_SHA`}}",
+    "ansible_skip_tags": "non_mutable",
+    "ansible_verbose": "-vvv",
+    "config_home": "{{env `APP_CONFIG_HOME`}}",
+    "ansible_home": "{{env `ANSIBLE_HDIR`}}",
+    "winrm_port": "{{env `PACKER_LISTN_PORT`}}",
+    "winrm_user": "Administrator",
+    "aws_region": "{{env `AWS_DEFAULT_REGION`}}",
+    "aws_account_type": "{{env `AWS_ACCOUNT_TYPE`}}",
+    "app_parent": "{{env `APP_PARENT`}}",
+    "app_name": "{{env `APP_NAME`}}",
+    "app_env": "{{env `APP_ENVIRONMENT`}}",
+    "ami_prefix": "Windows_Server-2016-English-Full-Base-20",
+    "build_ip": "{{env `BUILD_IP`}}",
+    "iam_profile": "{{env `IAM_PROFILE`}}"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "ami_name": "ami-{{user `aws_region`}}-{{user `app_env`}}-{{user `app_parent`}}-{{user `app_name`}}-windows-server-2016-{{user `git_sha`}}",
+    "instance_type": "t2.medium",
+    "spot_price": "auto",
+    "spot_price_auto_product": "Windows",
+    "region": "{{user `aws_region`}}",
+    "ami_description": "Using Base AMI {{ .SourceAMIName }}",
+    "force_deregister": true,
+    "force_delete_snapshot": true,
+    "communicator": "winrm",
+    "winrm_timeout": "12h",
+    "winrm_username": "{{user `winrm_user`}}",
+    "winrm_port": "{{user `winrm_port`}}",
+    "winrm_use_ssl": true,
+    "winrm_insecure": true,
+    "user_data_file": "{{ template_dir  }}/win-packer-user-data.ps1",
+    "subnet_filter": {
+      "filters": {
+        "tag:Type": "public"
+      },
+      "most_free": true,
+      "random": true
+    },
+    "temporary_security_group_source_cidrs": "{{user `build_ip`}}",
+    "associate_public_ip_address": true,
+    "iam_instance_profile": "{{user `iam_profile`}}",
+    "source_ami_filter": {
+      "filters": {
+          "name": "{{user `ami_prefix`}}*"
+        },
+        "owners": ["801119661308"],
+        "most_recent": true
+    },
+    "run_tags": {
+      "CommitID": "{{user `git_sha`}}",
+      "Name": "packer-{{user `app_name`}}",
+      "Family": "{{user `app_parent`}}",
+      "Environment": "{{user `app_env`}}"      
+    },
+    "tags": {
+      "OS_Version": "Windows-Server-2016",
+      "Base_AMI_Name": "{{ .SourceAMIName }}",
+      "Application": "{{user `app_name`}}",
+      "Family": "{{user `app_parent`}}",
+      "Environment": "{{user `app_env`}}"
+    }
+  }],
+  "provisioners": [
+    {
+    "type": "shell-local",
+    "command": "echo '[{{user `app_env`}}]' > {{user `config_home`}}/inv/packer.tmp && sed \"1s/\\$/ ansible_host=$(aws ec2 describe-instances --filter Name=tag:CommitID,Values=\"{{user `git_sha`}}\" Name=instance-state-name,Values=running | jq -r '.Reservations[].Instances[].PublicIpAddress')/\" < {{user `config_home`}}/inv/packer >> {{user `config_home`}}/inv/packer.tmp"
+    },
+    {
+      "type": "shell-local",
+      "command": "ansible-playbook {{user `ansible_verbose`}} -i {{user `config_home`}}/inv/packer.tmp --connection=$ANSIBLE_CONNECTION_TYPE --extra-vars='targethosts={{user `app_env`}} ansible_user={{ user `winrm_user` }} ansible_password={{ .WinRMPassword }} ansible_port={{ user `winrm_port` }} ansible_winrm_server_cert_validation=ignore ansible_winrm_operation_timeout_sec=240 ansible_winrm_read_timeout_sec=280' {{user `ansible_home`}}/play-argosfx-site.yml #--tags win_iis_site"
+    },
+    {
+      "type": "powershell","inline": [
+        "C:\\ProgramData\\Amazon\\EC2-Windows\\Launch\\Scripts\\SendWindowsIsReady.ps1 -Schedule",
+        "C:\\ProgramData\\Amazon\\EC2-Windows\\Launch\\Scripts\\InitializeInstance.ps1 -Schedule",
+        "C:\\ProgramData\\Amazon\\EC2-Windows\\Launch\\Scripts\\SysprepInstance.ps1 -NoShutdown"
+      ]
+    }            
+  ]
+}
