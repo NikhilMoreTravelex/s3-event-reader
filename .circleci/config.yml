@@ -135,21 +135,6 @@ jobs:
             - .aws/credentials
             - .env
 
-  build:
-    docker:
-      - image: node:12.4.0-alpine
-    steps:
-      - checkout
-      - *attach_workspace
-      - run: |
-          set -e
-          pwd
-          apk update && apk add git
-          npm install
-          npm config set unsafe-perm true
-          npm install -g serverless
-
-
   infra:
     docker:
       - image: gandhark/ansibleterraformpython3:2.8
@@ -170,30 +155,32 @@ jobs:
             cd ansible && ansible-playbook -i hosts site.yml  -vvvv
           no_output_timeout: 1h
 
+
   sls_deploy:
     docker:
       - image: node:12.4.0-alpine
     steps:
       - checkout
-      - run: apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
       - *attach_workspace
       - run: |
           set -e
           pwd
+          apk update && apk add git
+          npm install
+          npm config set unsafe-perm true
+          npm install -g serverless
           echo "Deploying To dev"
           cd serverless
-          serverless deploy --verbose --stage dev
+          sls deploy --verbose --stage dev
 
 workflows:
   version: 2
   build:
     jobs:
       - sts
-      - build
       - infra:
           requires:
             - sts
-            - build
           filters:
             branches:
               only:
@@ -203,7 +190,7 @@ workflows:
       - sls_deploy:
           requires:
             - sts
-            - build
+            - infra
           filters:
             branches:
               only:
