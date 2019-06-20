@@ -161,6 +161,7 @@ jobs:
       - image: node:12.4.0-alpine
     steps:
       - checkout
+      - run: apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
       - *attach_workspace
       - run: |
           set -e
