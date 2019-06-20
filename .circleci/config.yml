@@ -145,15 +145,11 @@ jobs:
           set -e
           pwd
           apk update && apk add git
-          cd api-operations/s3EventReader-process && npm install
-          cd ../../serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
-          pwd
-          ls -l .serverless
+          npm install
+          npm config set unsafe-perm true
+          npm install -g serverless
+          serverless --version
 
-      - persist_to_workspace:
-          root: /root/project
-          paths:
-            - serverless/.serverless/s3-event-reader.zip
 
   infra:
     docker:
@@ -175,6 +171,20 @@ jobs:
             cd ansible && ansible-playbook -i hosts site.yml  -vvvv
           no_output_timeout: 1h
 
+  sls_deploy:
+    docker:
+      - image: node:12.4.0-alpine
+    steps:
+      - checkout
+      - *attach_workspace
+      - run: |
+          set -e
+          pwd
+          serverless config credentials --provider aws --key $AWS_ACCESS_KEY_ID --secret $AWS_SECRET_ACCESS_KEY
+          pwd
+          echo "Deploying To dev"
+          serverless deploy --verbose --stage dev
+
 workflows:
   version: 2
   build:
@@ -185,17 +195,17 @@ workflows:
           requires:
             - sts
             - build
-            - middleware_bake
           filters:
             branches:
               only:
                 - develop
                 - CLDOPS-58
                   #- master
-      - middleware_bake:
+      - sls_deploy:
           requires:
             - sts
+            - build
           filters:
             branches:
               only:
-                - feature/packer
+                - develop
