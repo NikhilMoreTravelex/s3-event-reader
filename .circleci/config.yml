@@ -180,7 +180,7 @@ jobs:
       - run: |
           set -e
           pwd
-          serverless config credentials --provider aws --key $AWS_ACCESS_KEY_ID --secret $AWS_SECRET_ACCESS_KEY
+          serverless config credentials --provider aws
           pwd
           echo "Deploying To dev"
           serverless deploy --verbose --stage dev
