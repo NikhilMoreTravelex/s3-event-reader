@@ -172,7 +172,7 @@ jobs:
           npm install -g serverless
           echo "Deploying To dev"
           cd serverless
-          sls deploy --verbose --stage dev
+          serverless deploy --verbose --stage dev
 
 workflows:
   version: 2
