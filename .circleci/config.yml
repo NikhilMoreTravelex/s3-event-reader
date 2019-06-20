@@ -145,7 +145,7 @@ jobs:
           set -e
           apk update && apk add git
           cd api-operations/s3EventReader-process && npm install
-          cd serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
+          cd ../../serverless && npm install && SLS_DEBUG=* node_modules/.bin/sls package
     persist_to_workspace:
       root: /workspace
       paths:
