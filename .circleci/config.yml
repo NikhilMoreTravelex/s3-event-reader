@@ -158,7 +158,7 @@ jobs:
     steps:
       - checkout
       - *attach_workspace
-      - run: pwd && ls -la && ls -la /root/ && ls -la /root/serverless/.serverless/s3-event-reader.zip
+#      - run: pwd && ls -la && ls -la /root/ && ls -la /root/serverless/.serverless/s3-event-reader.zip
       - add_ssh_keys: *add_ssh_keys_infra_modules
       - run: *load_bash_env
       - run: *packer_cleanup
