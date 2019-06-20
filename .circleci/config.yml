@@ -1,0 +1,33 @@
+version: 2
+attach_workspace: &attach_workspace
+    attach_workspace:
+      at: ~/
+jobs:
+  build:
+    machine: true
+    steps:
+      - setup_remote_docker
+      - checkout
+      - run: |
+          set -e
+          docker-compose run npm
+          docker-compose run npm /bin/sh -c "cd /project/serverless && npm run unit-test"
+          docker-compose run npm /bin/sh -c "cd /project/serverless && SLS_DEBUG=* node_modules/.bin/sls package"
+    persist_to_workspace:
+      root: /workspace
+      paths:
+        - serverless/.serverless/s3-event-reader.zip
+  dev:
+    requires:
+      - build
+    steps:
+      - checkout
+      - *attach_workspace
+      - run: |
+          echo "Deploy to dev via Terraform"
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+      - dev
