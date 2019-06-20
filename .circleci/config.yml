@@ -150,7 +150,7 @@ jobs:
           pwd
           ls -l .serverless
     persist_to_workspace:
-      root: /workspace
+      root: /root/project
       paths:
         - serverless/.serverless
 
@@ -162,6 +162,7 @@ jobs:
     steps:
       - checkout
       - *attach_workspace
+      - pwd && ls -l
       - add_ssh_keys: *add_ssh_keys_infra_modules
       - run: *load_bash_env
       - run: *packer_cleanup
