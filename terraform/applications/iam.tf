@@ -6,7 +6,7 @@ data "aws_iam_policy_document" "event_reader_assume_role" {
 
     principals = {
       type = "Service"
-      idenitifiers = ["lambda.amazonaws.com"]
+      identifiers = ["lambda.amazonaws.com"]
     }
   }
 }
