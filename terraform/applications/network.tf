@@ -3,7 +3,7 @@
 # As we want to have separate subnet for points, and to map both rts-services and rts-points route tables to s3 endpoint, we would call endpoint module directly from root instead of network.
 
 module "network_ireland" {
-  source             = "git::github.com/travelex/it-infra-modules.git//terraform_modules/network_3_tier?ref=v1.1"
+  source             = "git::github.com/travelex/it-infra-modules.git//terraform_modules/network_2_tier?ref=v1.1"
   app_env            = "${local.app_env}"
   app_parent         = "${var.app_parent}"
   app_name           = "${var.app_name}"
@@ -12,9 +12,10 @@ module "network_ireland" {
   availability_zones = "${local.selected_azs}"
   subnets_per_az     = "${local.subnet_count_per_az}"
   newbits            = "${local.subnet_new_bits}"
-  netnum             = "${local.subnet_netnum_start_index}"
+ 
 }
 
+/*
 module "nat_gateway" {
   # Ireland
   source             = "git::github.com/travelex/it-infra-modules.git//terraform_modules/sub_modules/ngw?ref=v1.1"
@@ -32,7 +33,7 @@ module "nat_gateway" {
   public_subnets       = ["${module.network_ireland.public_subnets}"]
   private_route_tables = ["${module.network_ireland.private_app_route_tables}"]
 }
-
+*/
 
 /*
 ######################

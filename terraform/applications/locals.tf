@@ -250,11 +250,13 @@ locals {
     nonprod = "tvx-test.cloud"
     prod    = "tvx.cloud"
   }
+  
+  /*
   #DNS Records Fepends on alb module
   dns_records_cname = {
     web = "${module.alb_irland.dns_name}"
   }
-
+*/
   # Service name to use in ACM & Route 53.
   service_name = "web"
   new_service_name = "app"
