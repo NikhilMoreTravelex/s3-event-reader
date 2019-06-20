@@ -169,6 +169,7 @@ workflows:
             branches:
               only:
                 - develop
+                - CLDOPS-58
                   #- master
       - middleware_bake:
           requires:
