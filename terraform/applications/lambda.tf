@@ -6,8 +6,8 @@ resource "aws_lambda_function" "event_reader" {
   s3_bucket     = "${aws_s3_bucket.lambda_source.id}"
   s3_key        = "${aws_s3_bucket_object.lambda_package.id}"
   runtime       = "nodejs8.10"
-  memory_size   = "${var.memory_size_pusher}"
-  timeout       = "${var.lambda_timeout}"
+  memory_size   = 512
+  timeout       = 60
 
   tags = "${merge(
     local.common_tags,
