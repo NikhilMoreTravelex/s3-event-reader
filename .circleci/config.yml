@@ -162,7 +162,7 @@ jobs:
     steps:
       - checkout
       - *attach_workspace
-      - run: pwd && ls -l && ls -la serverless
+      - run: pwd && ls -la
       - add_ssh_keys: *add_ssh_keys_infra_modules
       - run: *load_bash_env
       - run: *packer_cleanup
