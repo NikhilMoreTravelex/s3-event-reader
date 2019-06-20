@@ -169,6 +169,7 @@ jobs:
           apk update && apk add git
           npm install
           npm config set unsafe-perm true
+          npm config set prefix /usr/local
           npm install -g serverless
           echo "Deploying To dev"
           cd serverless
