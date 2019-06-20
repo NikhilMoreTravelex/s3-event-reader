@@ -81,7 +81,6 @@ references:
         echo 'export APP_CONFIG_HOME="$CIRCLE_WORKING_DIRECTORY/ansible/config/$APP_NAME"' >> ${BASH_ENV}
         echo 'export GIT_SHA="$CIRCLE_SHA1"' >> ${BASH_ENV}
         cat ${BASH_ENV}
-
 jobs:
   sts:
     docker:
